@@ -344,9 +344,10 @@ export function generateAIPrompt(
   // 添加 AI 生成指令
   parts.push(`\n---\n`);
   parts.push(`务必按照<status_current_variables>和以上内容，生成一个符合描述和情景的初始剧情！\n`);
-  parts.push(`<NOTICE: 已在<status_current_variables>内的数据，不得修改和删除>\n`);
+  parts.push(`补充说明：唯一品质必定是高于传说品质的`);
+  parts.push(`（IMPORTANT: 已在<status_current_variables>内的数据，不得修改和删除）\n`);
   parts.push(
-    `(注意：生成初始剧情时，还需根据内容，将相关数据在<UpdateVariable>内进行记录和更新，严禁任何修改和省略。同时检查上述内容是否完整，如不完整，必须参考相关设定进行完善)`,
+    `（注意：生成初始剧情时，还需根据内容，将相关数据在<UpdateVariable>内进行记录和更新，严禁任何修改和省略。同时检查上述内容是否完整，如不完整，必须参考相关设定进行完善。）`,
   );
 
   return parts.join('\n');

@@ -39,10 +39,7 @@ export const DESTINED_TOTAL_TIERS = 7;
 /**
  * 命定之人 Cost 范围
  */
-export const DESTINED_COST_RANGE = {
-  min: 100,
-  max: 1000,
-};
+const DESTINED_COST_VALUES = [100, 213, 456, 2678, 4642, 8318, 9999];
 
 /**
  * 命定之人层级 Cost 计算
@@ -54,17 +51,15 @@ export function calculateDestinedCost(currentTier: number): number {
     throw new Error(`层级必须在 1 到 ${DESTINED_TOTAL_TIERS} 之间`);
   }
 
-  const { min, max } = DESTINED_COST_RANGE;
-  const step = (max - min) / (DESTINED_TOTAL_TIERS - 1);
-  return Math.round(min + step * (currentTier - 1));
+  return DESTINED_COST_VALUES[currentTier - 1];
 }
 
 /**
  * 生成命定之人所有 7 个层级的 Cost 数组
- * @returns Cost 数组 [100, 250, 400, 550, 700, 850, 1000]
+ * @returns Cost 数组
  */
 export function getDestinedCostArray(): number[] {
-  return Array.from({ length: DESTINED_TOTAL_TIERS }, (_, i) => calculateDestinedCost(i + 1));
+  return [...DESTINED_COST_VALUES];
 }
 
 /**
