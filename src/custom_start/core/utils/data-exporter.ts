@@ -3,6 +3,30 @@ import { RARITY_MAP } from '../data/constants';
 import type { Background, CharacterConfig, DestinedOne, Equipment, Item, Skill } from '../types';
 
 /**
+ * MVU 数据版本枚举
+ */
+enum MvuVersion {
+  V1 = 'v1', // 旧版本：技能列表、财产.背包、财产.货币
+  V2 = 'v2', // 新版本：角色.技能列表、背包、货币
+}
+
+/**
+ * 检测当前 MVU 数据版本
+ * 通过检查数据结构来判断版本
+ */
+function detectMvuVersion(mvuData: any): MvuVersion {
+  // 检查新版本特征：角色.技能列表 存在
+  const hasNewStructure = Mvu.getMvuVariable(mvuData, '角色.技能列表', { default_value: null }) !== null;
+
+  if (hasNewStructure) {
+    return MvuVersion.V2;
+  }
+
+  // 否则为旧版本
+  return MvuVersion.V1;
+}
+
+/**
  * 解析货币描述，提取金币、银币、铜币数量
  */
 function parseCurrency(description: string): { gold: number; silver: number; copper: number } {
@@ -25,7 +49,7 @@ function parseCurrency(description: string): { gold: number; silver: number; cop
 
 /**
  * 将角色数据写入到 MVU 变量中
- * 使用 parseMessage 模拟 MVU 命令来保持可扩展性
+ * 根据检测到的版本自动选择合适的写入策略
  */
 export async function writeCharacterToMvu(
   character: CharacterConfig,
@@ -41,8 +65,12 @@ export async function writeCharacterToMvu(
   const presetItems = items.filter(item => !item.isCustom);
   const presetDestinedOnes = destinedOnes.filter(one => !one.isCustom);
 
-  // 获取当前 MVU 数据以便清空现有条目
+  // 获取当前 MVU 数据
   const messageMvuData = Mvu.getMvuData({ type: 'message', message_id: 'latest' });
+
+  // 检测 MVU 数据版本
+  const version = detectMvuVersion(messageMvuData);
+  console.log(`📊 检测到 MVU 数据版本: ${version}`);
 
   // 构建 MVU 命令字符串
   const mvuCommands: string[] = [];
@@ -50,72 +78,127 @@ export async function writeCharacterToMvu(
   // 写入命运点数
   mvuCommands.push(`_.set('命定系统.命运点数', ${character.destinyPoints}); // 初始化命运点数`);
 
-  // 清空技能列表中的现有技能
-  const existingSkills = Mvu.getMvuVariable(messageMvuData, '技能列表', { default_value: {} });
-  for (const skillName of Object.keys(existingSkills)) {
-    mvuCommands.push(`_.delete('技能列表', '${skillName}'); // 删除旧技能：${skillName}`);
-  }
-  // 然后写入新技能（只写入预设技能）
-  for (const skill of presetSkills) {
-    const skillData = {
-      品质: RARITY_MAP[skill.rarity] || '普通',
-      类型: skill.type,
-      消耗: skill.consume || '',
-      标签: skill.tag,
-      效果: skill.effect,
-      描述: skill.description,
-    };
-    mvuCommands.push(`_.insert('技能列表', '${skill.name}', ${JSON.stringify(skillData)}); // 添加技能：${skill.name}`);
-  }
-
-  // 初始化货币并清空背包中的现有道具
-  mvuCommands.push(`_.set('财产.货币.金币', 0); // 初始化金币`);
-  mvuCommands.push(`_.set('财产.货币.银币', 0); // 初始化银币`);
-  mvuCommands.push(`_.set('财产.货币.铜币', 0); // 初始化铜币`);
-
-  const existingItems = Mvu.getMvuVariable(messageMvuData, '财产.背包', { default_value: {} });
-  for (const itemName of Object.keys(existingItems)) {
-    mvuCommands.push(`_.delete('财产.背包', '${itemName}'); // 删除旧道具：${itemName}`);
-  }
-  // 然后写入道具（只写入预设道具，区分货币和普通道具）
-  for (const item of presetItems) {
-    // 检查是否是货币类型
-    if (item.type === '货币') {
-      // 解析货币描述，提取金币、银币、铜币
-      const currency = parseCurrency(item.description);
-
-      // 写入到货币变量
-      if (currency.gold > 0) {
-        mvuCommands.push(`_.add('财产.货币.金币', ${currency.gold}); // 添加金币`);
-      }
-      if (currency.silver > 0) {
-        mvuCommands.push(`_.add('财产.货币.银币', ${currency.silver}); // 添加银币`);
-      }
-      if (currency.copper > 0) {
-        mvuCommands.push(`_.add('财产.货币.铜币', ${currency.copper}); // 添加铜币`);
-      }
-    } else {
-      // 普通道具添加到背包
-      const itemData = {
-        品质: RARITY_MAP[item.rarity] || '普通',
-        数量: item.quantity || 1,
-        类型: item.type,
-        标签: item.tag,
-        效果: item.effect,
-        描述: item.description,
+  // 根据版本选择不同的写入策略
+  if (version === MvuVersion.V2) {
+    // ===== 新版本 (V2) =====
+    // 技能列表路径：角色.技能列表
+    const existingSkillsV2 = Mvu.getMvuVariable(messageMvuData, '角色.技能列表', { default_value: {} });
+    for (const skillName of Object.keys(existingSkillsV2).filter(k => k !== '$meta')) {
+      mvuCommands.push(`_.delete('角色.技能列表', '${skillName}'); // 删除旧技能：${skillName}`);
+    }
+    for (const skill of presetSkills) {
+      const skillData = {
+        品质: RARITY_MAP[skill.rarity] || '普通',
+        类型: skill.type,
+        消耗: skill.consume || '',
+        标签: skill.tag,
+        效果: skill.effect,
+        描述: skill.description,
       };
-      mvuCommands.push(`_.insert('财产.背包', '${item.name}', ${JSON.stringify(itemData)}); // 添加道具：${item.name}`);
+      mvuCommands.push(
+        `_.insert('角色.技能列表', '${skill.name}', ${JSON.stringify(skillData)}); // 添加技能：${skill.name}`,
+      );
+    }
+
+    // 货币路径
+    mvuCommands.push(`_.set('货币.金币', 0); // 初始化金币`);
+    mvuCommands.push(`_.set('货币.银币', 0); // 初始化银币`);
+    mvuCommands.push(`_.set('货币.铜币', 0); // 初始化铜币`);
+
+    // 背包路径
+    const existingItemsV2 = Mvu.getMvuVariable(messageMvuData, '背包', { default_value: {} });
+    for (const itemName of Object.keys(existingItemsV2).filter(k => k !== '$meta')) {
+      mvuCommands.push(`_.delete('背包', '${itemName}'); // 删除旧道具：${itemName}`);
+    }
+    for (const item of presetItems) {
+      if (item.type === '货币') {
+        const currency = parseCurrency(item.description);
+        if (currency.gold > 0) {
+          mvuCommands.push(`_.add('货币.金币', ${currency.gold}); // 添加金币`);
+        }
+        if (currency.silver > 0) {
+          mvuCommands.push(`_.add('货币.银币', ${currency.silver}); // 添加银币`);
+        }
+        if (currency.copper > 0) {
+          mvuCommands.push(`_.add('货币.铜币', ${currency.copper}); // 添加铜币`);
+        }
+      } else {
+        const itemData = {
+          品质: RARITY_MAP[item.rarity] || '普通',
+          数量: item.quantity || 1,
+          类型: item.type,
+          标签: item.tag,
+          效果: item.effect,
+          描述: item.description,
+        };
+        mvuCommands.push(`_.insert('背包', '${item.name}', ${JSON.stringify(itemData)}); // 添加道具：${item.name}`);
+      }
+    }
+  } else {
+    // ===== 旧版本 (V1) =====
+    // 技能列表路径：技能列表
+    const existingSkillsV1 = Mvu.getMvuVariable(messageMvuData, '技能列表', { default_value: {} });
+    for (const skillName of Object.keys(existingSkillsV1)) {
+      mvuCommands.push(`_.delete('技能列表', '${skillName}'); // 删除旧技能：${skillName}`);
+    }
+    for (const skill of presetSkills) {
+      const skillData = {
+        品质: RARITY_MAP[skill.rarity] || '普通',
+        类型: skill.type,
+        消耗: skill.consume || '',
+        标签: skill.tag,
+        效果: skill.effect,
+        描述: skill.description,
+      };
+      mvuCommands.push(
+        `_.insert('技能列表', '${skill.name}', ${JSON.stringify(skillData)}); // 添加技能：${skill.name}`,
+      );
+    }
+
+    // 货币路径：财产.货币
+    mvuCommands.push(`_.set('财产.货币.金币', 0); // 初始化金币`);
+    mvuCommands.push(`_.set('财产.货币.银币', 0); // 初始化银币`);
+    mvuCommands.push(`_.set('财产.货币.铜币', 0); // 初始化铜币`);
+
+    // 背包路径：财产.背包
+    const existingItemsV1 = Mvu.getMvuVariable(messageMvuData, '财产.背包', { default_value: {} });
+    for (const itemName of Object.keys(existingItemsV1)) {
+      mvuCommands.push(`_.delete('财产.背包', '${itemName}'); // 删除旧道具：${itemName}`);
+    }
+    for (const item of presetItems) {
+      if (item.type === '货币') {
+        const currency = parseCurrency(item.description);
+        if (currency.gold > 0) {
+          mvuCommands.push(`_.add('财产.货币.金币', ${currency.gold}); // 添加金币`);
+        }
+        if (currency.silver > 0) {
+          mvuCommands.push(`_.add('财产.货币.银币', ${currency.silver}); // 添加银币`);
+        }
+        if (currency.copper > 0) {
+          mvuCommands.push(`_.add('财产.货币.铜币', ${currency.copper}); // 添加铜币`);
+        }
+      } else {
+        const itemData = {
+          品质: RARITY_MAP[item.rarity] || '普通',
+          数量: item.quantity || 1,
+          类型: item.type,
+          标签: item.tag,
+          效果: item.effect,
+          描述: item.description,
+        };
+        mvuCommands.push(
+          `_.insert('财产.背包', '${item.name}', ${JSON.stringify(itemData)}); // 添加道具：${item.name}`,
+        );
+      }
     }
   }
 
-  // 清空命定之人列表中的现有命定之人
+  // 命定之人
   const existingDestinedOnes = Mvu.getMvuVariable(messageMvuData, '命定系统.命定之人', { default_value: {} });
-  for (const oneName of Object.keys(existingDestinedOnes)) {
+  for (const oneName of Object.keys(existingDestinedOnes).filter(k => k !== '$meta')) {
     mvuCommands.push(`_.delete('命定系统.命定之人', '${oneName}'); // 删除旧命定之人：${oneName}`);
   }
-  // 然后写入命定之人（只写入预设命定之人）
   for (const one of presetDestinedOnes) {
-    // 创建命定之人数据对象
     const oneData: Record<string, any> = {
       是否在场: '是',
       生命层级: one.lifeLevel,
@@ -145,7 +228,6 @@ export async function writeCharacterToMvu(
       技能: {},
     };
 
-    // 添加装备
     for (const eq of one.equip) {
       if (eq.name) {
         oneData.装备[eq.name] = {
@@ -158,7 +240,6 @@ export async function writeCharacterToMvu(
       }
     }
 
-    // 添加技能
     for (const skill of one.skills) {
       oneData.技能[skill.name] = {
         品质: RARITY_MAP[skill.rarity] || '普通',
@@ -177,12 +258,11 @@ export async function writeCharacterToMvu(
 
   // 使用 parseMessage 解析命令并更新消息楼层变量
   const commandMessage = mvuCommands.join('\n');
-
   const updatedMessageData = await Mvu.parseMessage(commandMessage, messageMvuData);
 
   if (updatedMessageData) {
     await Mvu.replaceMvuData(updatedMessageData, { type: 'message', message_id: 'latest' });
-    console.log('✅ 预设数据已成功写入消息楼层变量（保持可扩展性）');
+    console.log(`✅ 预设数据已成功写入消息楼层变量 [${version.toUpperCase()}]`);
   } else {
     console.warn('⚠️ MVU 命令解析失败，数据未写入');
   }
