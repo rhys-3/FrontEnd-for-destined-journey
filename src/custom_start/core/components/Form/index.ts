@@ -1,3 +1,4 @@
+export { default as FormArrayInput } from './FormArrayInput.vue';
 export { default as FormInput } from './FormInput.vue';
 export { default as FormLabel } from './FormLabel.vue';
 export { default as FormNumber } from './FormNumber.vue';

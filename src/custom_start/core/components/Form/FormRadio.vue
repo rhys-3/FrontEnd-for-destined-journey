@@ -1,22 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+type OptionValue = string | number | boolean;
+
 interface Option {
   label: string;
-  value: string | number;
+  value: OptionValue;
   disabled?: boolean;
 }
 
 interface Props {
-  modelValue: string | number;
+  modelValue: OptionValue;
   options: Option[] | readonly string[] | string[];
   disabled?: boolean;
   layout?: 'vertical' | 'horizontal';
 }
 
 interface Emits {
-  (e: 'update:modelValue', value: string | number): void;
-  (e: 'change', value: string | number): void;
+  (e: 'update:modelValue', value: OptionValue): void;
+  (e: 'change', value: OptionValue): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -48,8 +50,8 @@ const normalizedOptions = computed(() => {
 <template>
   <div class="form-radio-group" :class="[`layout-${layout}`]">
     <label
-      v-for="option in normalizedOptions"
-      :key="option.value"
+      v-for="(option, index) in normalizedOptions"
+      :key="index"
       class="radio-option"
       :class="{
         'is-checked': radioValue === option.value,

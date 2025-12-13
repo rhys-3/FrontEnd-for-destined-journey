@@ -198,13 +198,15 @@ export function generateAIPrompt(
   if (equipments.length > 0) {
     lines.push('');
     lines.push('【装备列表】');
-    equipments.forEach(eq => {
+    equipments.forEach((eq, index) => {
       lines.push(`- 名称: ${eq.name}`);
       lines.push(`  类型: ${eq.type}`);
       lines.push(`  品质: ${RARITY_MAP[eq.rarity] || eq.rarity}`);
       if (eq.tag) lines.push(`  标签: ${eq.tag}`);
       lines.push(`  效果: ${eq.effect}`);
       if (eq.description) lines.push(`  描述: ${eq.description}`);
+      // 在项目之间添加空行（末尾不加）
+      if (index < equipments.length - 1) lines.push('');
     });
   }
 
@@ -213,7 +215,7 @@ export function generateAIPrompt(
   if (customItems.length > 0) {
     lines.push('');
     lines.push('【自定义道具】');
-    customItems.forEach(item => {
+    customItems.forEach((item, index) => {
       lines.push(`- 名称: ${item.name || '未命名'}`);
       if (item.type) lines.push(`  类型: ${item.type}`);
       if (item.rarity) lines.push(`  品质: ${RARITY_MAP[item.rarity] || item.rarity}`);
@@ -221,6 +223,8 @@ export function generateAIPrompt(
       if (item.tag) lines.push(`  标签: ${item.tag}`);
       if (item.effect) lines.push(`  效果: ${item.effect}`);
       if (item.description) lines.push(`  描述: ${item.description}`);
+      // 在项目之间添加空行（末尾不加）
+      if (index < customItems.length - 1) lines.push('');
     });
   }
 
@@ -229,7 +233,7 @@ export function generateAIPrompt(
   if (customSkills.length > 0) {
     lines.push('');
     lines.push('【自定义技能】');
-    customSkills.forEach(skill => {
+    customSkills.forEach((skill, index) => {
       lines.push(`- 名称: ${skill.name || '未命名'}`);
       if (skill.type) lines.push(`  类型: ${skill.type}`);
       if (skill.rarity) lines.push(`  品质: ${RARITY_MAP[skill.rarity] || skill.rarity}`);
@@ -237,6 +241,8 @@ export function generateAIPrompt(
       if (skill.consume) lines.push(`  消耗: ${skill.consume}`);
       if (skill.effect) lines.push(`  效果: ${skill.effect}`);
       if (skill.description) lines.push(`  描述: ${skill.description}`);
+      // 在项目之间添加空行（末尾不加）
+      if (index < customSkills.length - 1) lines.push('');
     });
   }
 
@@ -268,7 +274,16 @@ export function generateAIPrompt(
         const validEquips = one.equip.filter(eq => eq.name);
         if (validEquips.length > 0) {
           lines.push(`  装备:`);
-          validEquips.forEach(eq => lines.push(`    - ${eq.name}`));
+          validEquips.forEach((eq, eqIndex) => {
+            lines.push(`    - 名称: ${eq.name}`);
+            if (eq.type) lines.push(`      类型: ${eq.type}`);
+            if (eq.rarity) lines.push(`      品质: ${RARITY_MAP[eq.rarity] || eq.rarity}`);
+            if (eq.tag) lines.push(`      标签: ${eq.tag}`);
+            if (eq.effect) lines.push(`      效果: ${eq.effect}`);
+            if (eq.description) lines.push(`      描述: ${eq.description}`);
+            // 在装备之间添加空行（末尾不加）
+            if (eqIndex < validEquips.length - 1) lines.push('');
+          });
         }
       }
       if (one.stairway.isOpen) {
@@ -279,9 +294,16 @@ export function generateAIPrompt(
       if (one.backgroundInfo) lines.push(`  背景: ${one.backgroundInfo}`);
       if (one.skills.length > 0) {
         lines.push(`  技能:`);
-        one.skills.forEach(sk => {
+        one.skills.forEach((sk, skIndex) => {
           lines.push(`    - 名称: ${sk.name}`);
-          lines.push(`      效果: ${sk.effect}`);
+          if (sk.type) lines.push(`      类型: ${sk.type}`);
+          if (sk.rarity) lines.push(`      品质: ${RARITY_MAP[sk.rarity] || sk.rarity}`);
+          if (sk.tag) lines.push(`      标签: ${sk.tag}`);
+          if (sk.consume) lines.push(`      消耗: ${sk.consume}`);
+          if (sk.effect) lines.push(`      效果: ${sk.effect}`);
+          if (sk.description) lines.push(`      描述: ${sk.description}`);
+          // 在技能之间添加空行（末尾不加）
+          if (skIndex < one.skills.length - 1) lines.push('');
         });
       }
     });

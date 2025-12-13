@@ -4,6 +4,7 @@ import { FormInput, FormLabel, FormNumber, FormTextarea } from '../../../compone
 import { useCustomContentStore } from '../../../store/customContent';
 import type { Equipment, Item, Rarity, Skill } from '../../../types';
 import { calculateCostByPosition, getCostRange } from '../../../utils/cost-calculator';
+import { CATEGORY_OPTIONS, RARITY_OPTIONS } from '../../../utils/form-options';
 
 interface Emits {
   (e: 'add', item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill'): void;
@@ -64,23 +65,9 @@ const itemQuantity = computed({
   set: (value: number) => customContentStore.updateCustomItemForm('itemQuantity', value),
 });
 
-// 品质选项
-const rarityOptions: { value: Rarity; label: string; color: string }[] = [
-  { value: 'common', label: '普通', color: '#9e9e9e' },
-  { value: 'uncommon', label: '优秀', color: '#4caf50' },
-  { value: 'rare', label: '稀有', color: '#2196f3' },
-  { value: 'epic', label: '史诗', color: '#9c27b0' },
-  { value: 'legendary', label: '传说', color: '#ff9800' },
-  { value: 'mythic', label: '神话', color: '#e91e63' },
-  { value: 'only', label: '唯一', color: '#ff0000' },
-];
-
-// 大分类选项
-const categoryOptions = [
-  { value: 'equipment', label: '装备' },
-  { value: 'item', label: '道具' },
-  { value: 'skill', label: '技能' },
-];
+// 使用 form-options 中的配置
+const rarityOptions = RARITY_OPTIONS;
+const categoryOptions = CATEGORY_OPTIONS;
 
 // 根据品质计算点数（使用 0.5-1 之间的随机位置）
 const calculatedCost = computed(() => {

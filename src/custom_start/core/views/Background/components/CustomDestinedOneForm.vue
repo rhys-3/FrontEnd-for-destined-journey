@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import FormInput from '../../../components/Form/FormInput.vue';
-import FormLabel from '../../../components/Form/FormLabel.vue';
-import FormNumber from '../../../components/Form/FormNumber.vue';
-import FormTextarea from '../../../components/Form/FormTextarea.vue';
+import {
+  FormArrayInput,
+  FormInput,
+  FormLabel,
+  FormNumber,
+  FormRadio,
+  FormTextarea,
+} from '../../../components/Form';
 import { useCustomContentStore } from '../../../store/customContent';
-import type { DestinedOne } from '../../../types';
+import type { DestinedOne, Rarity } from '../../../types';
 import { calculateDestinedCost } from '../../../utils/cost-calculator';
+import AttributeEditor, { type Attributes } from './AttributeEditor.vue';
+import EquipmentEditor, { type EquipmentItem } from './EquipmentEditor.vue';
+import SkillEditor, { type SkillItem } from './SkillEditor.vue';
 
 interface Emits {
   (e: 'add', item: DestinedOne): void;
 }
 
 const emit = defineEmits<Emits>();
-
-// 使用自定义内容 store
 const customContentStore = useCustomContentStore();
-
-// 折叠状态
 const isExpanded = ref(false);
 
 // 层级与等级的映射关系
@@ -30,232 +33,121 @@ const LEVEL_GRADE_MAP: Record<number, { name: string; minGrade: number; maxGrade
   6: { name: '第六层级 (神话层级)', minGrade: 21, maxGrade: 24 },
   7: { name: '第七层级 (神祗)', minGrade: 25, maxGrade: 25 },
 };
+// 契约选项
+const contractOptions = [
+  { label: '是', value: true },
+  { label: '否', value: false },
+];
 
-// 表单数据
+// 表单数据 - 使用 computed 双向绑定，通过函数访问确保响应式
 const itemName = computed({
   get: () => customContentStore.customDestinedOneForm.itemName,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemName', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemName', v),
 });
-
 const itemLevel = computed({
   get: () => customContentStore.customDestinedOneForm.itemLevel,
-  set: (value: number) => customContentStore.updateCustomDestinedOneForm('itemLevel', value),
+  set: (v: number) => customContentStore.updateCustomDestinedOneForm('itemLevel', v),
 });
-
 const itemLifeLevel = computed({
   get: () => customContentStore.customDestinedOneForm.itemLifeLevel,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemLifeLevel', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemLifeLevel', v),
 });
-
 const itemGrade = computed({
   get: () => customContentStore.customDestinedOneForm.itemGrade,
-  set: (value: number) => customContentStore.updateCustomDestinedOneForm('itemGrade', value),
+  set: (v: number) => customContentStore.updateCustomDestinedOneForm('itemGrade', v),
 });
-
 const itemRace = computed({
   get: () => customContentStore.customDestinedOneForm.itemRace,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemRace', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemRace', v),
 });
-
 const itemIdentity = computed({
   get: () => customContentStore.customDestinedOneForm.itemIdentity,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemIdentity', value),
+  set: (v: string[]) => customContentStore.updateCustomDestinedOneForm('itemIdentity', v),
 });
-
 const itemCareer = computed({
   get: () => customContentStore.customDestinedOneForm.itemCareer,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemCareer', value),
+  set: (v: string[]) => customContentStore.updateCustomDestinedOneForm('itemCareer', v),
 });
-
 const itemPersonality = computed({
   get: () => customContentStore.customDestinedOneForm.itemPersonality,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemPersonality', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemPersonality', v),
 });
-
 const itemLike = computed({
   get: () => customContentStore.customDestinedOneForm.itemLike,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemLike', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemLike', v),
 });
-
 const itemApp = computed({
   get: () => customContentStore.customDestinedOneForm.itemApp,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemApp', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemApp', v),
 });
-
 const itemCloth = computed({
   get: () => customContentStore.customDestinedOneForm.itemCloth,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemCloth', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemCloth', v),
 });
-
 const itemEquip = computed({
   get: () => customContentStore.customDestinedOneForm.itemEquip,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemEquip', value),
+  set: (v: EquipmentItem[]) => customContentStore.updateCustomDestinedOneForm('itemEquip', v),
 });
-
 const itemAttributes = computed({
   get: () => customContentStore.customDestinedOneForm.itemAttributes,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemAttributes', value),
+  set: (v: Attributes) => customContentStore.updateCustomDestinedOneForm('itemAttributes', v),
 });
-
 const itemStairway = computed({
   get: () => customContentStore.customDestinedOneForm.itemStairway,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemStairway', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemStairway', v),
 });
-
 const itemIsContract = computed({
   get: () => customContentStore.customDestinedOneForm.itemIsContract,
-  set: (value: boolean) => customContentStore.updateCustomDestinedOneForm('itemIsContract', value),
+  set: (v: boolean) => customContentStore.updateCustomDestinedOneForm('itemIsContract', v),
 });
-
 const itemAffinity = computed({
   get: () => customContentStore.customDestinedOneForm.itemAffinity,
-  set: (value: number) => customContentStore.updateCustomDestinedOneForm('itemAffinity', value),
+  set: (v: number) => customContentStore.updateCustomDestinedOneForm('itemAffinity', v),
 });
-
 const itemComment = computed({
   get: () => customContentStore.customDestinedOneForm.itemComment,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemComment', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemComment', v),
 });
-
 const itemBackgroundInfo = computed({
   get: () => customContentStore.customDestinedOneForm.itemBackgroundInfo,
-  set: (value: string) =>
-    customContentStore.updateCustomDestinedOneForm('itemBackgroundInfo', value),
+  set: (v: string) => customContentStore.updateCustomDestinedOneForm('itemBackgroundInfo', v),
 });
-
 const itemSkills = computed({
   get: () => customContentStore.customDestinedOneForm.itemSkills,
-  set: (value: string) => customContentStore.updateCustomDestinedOneForm('itemSkills', value),
+  set: (v: SkillItem[]) => customContentStore.updateCustomDestinedOneForm('itemSkills', v),
 });
 
-// 根据层级计算点数
-const calculatedCost = computed(() => {
-  return calculateDestinedCost(itemLevel.value);
-});
+// 计算属性
+const calculatedCost = computed(() => calculateDestinedCost(itemLevel.value));
+const currentLevelInfo = computed(() => LEVEL_GRADE_MAP[itemLevel.value]);
+const isValid = computed(() => itemName.value.trim() !== '' && itemRace.value.trim() !== '');
 
-// 当前层级的等级范围
-const currentLevelInfo = computed(() => {
-  return LEVEL_GRADE_MAP[itemLevel.value];
-});
-
-// 监听层级变化，自动更新生命层级和等级范围
+// 监听层级变化
 watch(
   () => itemLevel.value,
   newLevel => {
     const levelInfo = LEVEL_GRADE_MAP[newLevel];
     if (levelInfo) {
       itemLifeLevel.value = levelInfo.name;
-      // 如果当前等级不在新层级的范围内，重置为该层级的最小等级
       if (itemGrade.value < levelInfo.minGrade || itemGrade.value > levelInfo.maxGrade) {
         itemGrade.value = levelInfo.minGrade;
       }
     }
   },
-  { immediate: true }, // 立即执行，确保初始化时也会设置生命层级
+  { immediate: true },
 );
-
-// 表单验证
-const isValid = computed(() => {
-  return itemName.value.trim() !== '' && itemRace.value.trim() !== '';
-});
 
 // 重置表单
 const resetForm = () => {
   customContentStore.resetCustomDestinedOneForm();
-  // 重置后触发生命层级的更新
   const levelInfo = LEVEL_GRADE_MAP[itemLevel.value];
-  if (levelInfo) {
-    itemLifeLevel.value = levelInfo.name;
-  }
+  if (levelInfo) itemLifeLevel.value = levelInfo.name;
 };
 
-// 解析数组字符串（用换行或逗号分隔）
-const parseArrayString = (str: string): string[] => {
-  if (!str.trim()) return [];
-  return str
-    .split(/[,，\n]/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-};
-
-// 解析装备字符串
-const parseEquipString = (str: string): Partial<any>[] => {
-  if (!str.trim()) return [];
-  const equips = str
-    .split(/\n\n+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-  return equips.map(equip => {
-    const lines = equip.split('\n');
-    const name = lines[0] || '未命名装备';
-    const details = lines.slice(1).join('\n');
-    return {
-      name,
-      description: details || undefined,
-    };
-  });
-};
-
-// 解析属性字符串（格式：力量:10,敏捷:20）
-const parseAttributesString = (str: string): any => {
-  if (!str.trim()) {
-    return {
-      strength: 0,
-      dexterity: 0,
-      constitution: 0,
-      intelligence: 0,
-      mind: 0,
-    };
-  }
-  const attrs: any = {
-    strength: 0,
-    dexterity: 0,
-    constitution: 0,
-    intelligence: 0,
-    mind: 0,
-  };
-  const pairs = str.split(/[,，]/).map(s => s.trim());
-  for (const pair of pairs) {
-    const [key, value] = pair.split(/[:：]/).map(s => s.trim());
-    const numValue = parseInt(value) || 0;
-    if (key.includes('力量')) attrs.strength = numValue;
-    else if (key.includes('敏捷')) attrs.dexterity = numValue;
-    else if (key.includes('体质')) attrs.constitution = numValue;
-    else if (key.includes('智力')) attrs.intelligence = numValue;
-    else if (key.includes('精神')) attrs.mind = numValue;
-  }
-  return attrs;
-};
-
-// 解析登神长阶字符串（简化版）
-const parseStairwayString = (str: string): any => {
-  if (!str.trim()) {
-    return { isOpen: false };
-  }
-  return {
-    isOpen: true,
-    elements: { 描述: str },
-  };
-};
-
-// 解析技能字符串（简化版，只解析名称和效果）
-const parseSkillsString = (str: string): any[] => {
-  if (!str.trim()) return [];
-  const skills = str
-    .split(/\n\n+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-  return skills.map(skill => {
-    const lines = skill.split('\n');
-    return {
-      name: lines[0] || '未命名技能',
-      type: '主动',
-      tag: '',
-      rarity: 'common' as const,
-      effect: lines.slice(1).join('\n') || '无描述',
-      description: '',
-    };
-  });
+// 解析登神长阶
+const parseStairway = (str: string) => {
+  if (!str.trim()) return { isOpen: false };
+  return { isOpen: true, elements: { 描述: str } };
 };
 
 // 添加自定义命定之人
@@ -268,21 +160,21 @@ const handleAdd = () => {
     lifeLevel: itemLifeLevel.value.trim() || '未知',
     level: itemGrade.value,
     race: itemRace.value.trim(),
-    identity: parseArrayString(itemIdentity.value),
-    career: parseArrayString(itemCareer.value),
+    identity: itemIdentity.value,
+    career: itemCareer.value,
     personality: itemPersonality.value.trim() || '未知',
     like: itemLike.value.trim() || '未知',
     app: itemApp.value.trim() || '未知',
     cloth: itemCloth.value.trim() || '未知',
-    equip: parseEquipString(itemEquip.value),
-    attributes: parseAttributesString(itemAttributes.value),
-    stairway: parseStairwayString(itemStairway.value),
+    equip: itemEquip.value.map(e => ({ ...e, rarity: e.rarity as Rarity })),
+    attributes: itemAttributes.value,
+    stairway: parseStairway(itemStairway.value),
     isContract: itemIsContract.value,
     affinity: itemAffinity.value,
     comment: itemComment.value.trim(),
     backgroundInfo: itemBackgroundInfo.value.trim(),
-    skills: parseSkillsString(itemSkills.value),
-    isCustom: true, // 标记为自定义数据
+    skills: itemSkills.value.map(s => ({ ...s, rarity: s.rarity as Rarity })),
+    isCustom: true,
   };
 
   emit('add', newItem);
@@ -355,18 +247,14 @@ const handleAdd = () => {
 
       <!-- 身份 -->
       <div class="form-row">
-        <FormLabel label="身份（多个用逗号或换行分隔）" />
-        <FormTextarea
-          v-model="itemIdentity"
-          placeholder="例如：&#10;吟游诗人&#10;异世界的猩红女巫"
-          :rows="2"
-        />
+        <FormLabel label="身份" />
+        <FormArrayInput v-model="itemIdentity" placeholder="输入身份后按回车添加" />
       </div>
 
       <!-- 职业 -->
       <div class="form-row">
-        <FormLabel label="职业（多个用逗号或换行分隔）" />
-        <FormTextarea v-model="itemCareer" placeholder="例如：&#10;调律者&#10;指挥家" :rows="2" />
+        <FormLabel label="职业" />
+        <FormArrayInput v-model="itemCareer" placeholder="输入职业后按回车添加" />
       </div>
 
       <!-- 性格 -->
@@ -395,18 +283,14 @@ const handleAdd = () => {
 
       <!-- 装备 -->
       <div class="form-row">
-        <FormLabel label="装备（每个装备用空行分隔，第一行为装备名）" />
-        <FormTextarea
-          v-model="itemEquip"
-          placeholder="装备名称&#10;装备效果和描述&#10;&#10;另一个装备名称&#10;装备效果和描述"
-          :rows="4"
-        />
+        <FormLabel label="装备" />
+        <EquipmentEditor v-model="itemEquip" :max-items="10" />
       </div>
 
       <!-- 属性 -->
       <div class="form-row">
-        <FormLabel label="属性（格式：力量:6,敏捷:6,体质:6,智力:11,精神:12）" />
-        <FormInput v-model="itemAttributes" placeholder="力量:6,敏捷:6,体质:6,智力:11,精神:12" />
+        <FormLabel label="属性" />
+        <AttributeEditor v-model="itemAttributes" :min="1" :max="99" />
       </div>
 
       <!-- 登神长阶 -->
@@ -426,16 +310,7 @@ const handleAdd = () => {
       <!-- 是否缔结契约 -->
       <div class="form-row">
         <FormLabel label="是否缔结契约" />
-        <div class="radio-group">
-          <label class="radio-label">
-            <input v-model="itemIsContract" type="radio" :value="true" />
-            是
-          </label>
-          <label class="radio-label">
-            <input v-model="itemIsContract" type="radio" :value="false" />
-            否
-          </label>
-        </div>
+        <FormRadio v-model="itemIsContract" :options="contractOptions" />
       </div>
 
       <!-- 好感度 -->
@@ -458,12 +333,8 @@ const handleAdd = () => {
 
       <!-- 技能 -->
       <div class="form-row">
-        <FormLabel label="技能（每个技能用空行分隔，第一行为技能名）" />
-        <FormTextarea
-          v-model="itemSkills"
-          placeholder="技能名称&#10;技能描述&#10;&#10;另一个技能名称&#10;技能描述"
-          :rows="4"
-        />
+        <FormLabel label="技能" />
+        <SkillEditor v-model="itemSkills" :max-items="10" />
       </div>
 
       <!-- 操作按钮 -->
@@ -546,11 +417,6 @@ const handleAdd = () => {
     }
   }
 
-  .radio-group {
-    display: flex;
-    gap: var(--spacing-md);
-  }
-
   .level-buttons {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -579,19 +445,6 @@ const handleAdd = () => {
       color: var(--primary-bg);
       font-weight: 600;
       box-shadow: 0 2px 4px rgba(212, 175, 55, 0.3);
-    }
-  }
-
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: var(--text-color);
-
-    input[type='radio'] {
-      cursor: pointer;
     }
   }
 

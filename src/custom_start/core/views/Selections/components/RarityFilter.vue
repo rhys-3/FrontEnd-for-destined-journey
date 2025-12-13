@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Rarity } from '../../../types';
+import { RARITY_OPTIONS } from '../../../utils/form-options';
 
 interface Props {
   modelValue: Rarity | 'all';
@@ -12,16 +13,11 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// 品质选项配置
+// 基于 RARITY_OPTIONS 构建筛选选项（添加 "all" 选项，并按从高到低排序）
 const rarityOptions: { value: Rarity | 'all'; label: string; color: string }[] = [
   { value: 'all', label: '全部', color: '#666' },
-  { value: 'only', label: '唯一', color: '#ff0000' },
-  { value: 'mythic', label: '神话', color: '#e91e63' },
-  { value: 'legendary', label: '传说', color: '#ff9800' },
-  { value: 'epic', label: '史诗', color: '#9c27b0' },
-  { value: 'rare', label: '稀有', color: '#2196f3' },
-  { value: 'uncommon', label: '优秀', color: '#4caf50' },
-  { value: 'common', label: '普通', color: '#9e9e9e' },
+  // 按从高到低的顺序排列
+  ...RARITY_OPTIONS.slice().reverse(),
 ];
 
 const handleSelect = (value: Rarity | 'all') => {

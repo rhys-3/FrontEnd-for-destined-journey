@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Rarity } from '../types';
+import type { Attributes } from '../views/Background/components/AttributeEditor.vue';
+import type { EquipmentItem } from '../views/Background/components/EquipmentEditor.vue';
+import type { SkillItem } from '../views/Background/components/SkillEditor.vue';
 
 /**
  * 自定义内容 Store
@@ -59,7 +62,19 @@ export const useCustomContentStore = defineStore('customContent', () => {
   };
 
   /**
+   * 默认属性值
+   */
+  const defaultAttributes: Attributes = {
+    strength: 5,
+    dexterity: 5,
+    constitution: 5,
+    intelligence: 5,
+    mind: 5,
+  };
+
+  /**
    * 自定义命定之人表单数据
+   * 使用专业级数据结构：数组用于多值字段，对象用于复杂结构
    */
   const customDestinedOneForm = ref({
     itemName: '',
@@ -67,20 +82,22 @@ export const useCustomContentStore = defineStore('customContent', () => {
     itemLifeLevel: '',
     itemGrade: 1,
     itemRace: '',
-    itemIdentity: '',
-    itemCareer: '',
+    // 使用数组类型存储多值字段
+    itemIdentity: [] as string[],
+    itemCareer: [] as string[],
     itemPersonality: '',
     itemLike: '',
     itemApp: '',
     itemCloth: '',
-    itemEquip: '',
-    itemAttributes: '',
+    // 使用专业编辑器组件的数据结构
+    itemEquip: [] as EquipmentItem[],
+    itemAttributes: { ...defaultAttributes } as Attributes,
     itemStairway: '',
     itemIsContract: true,
     itemAffinity: 0,
     itemComment: '',
     itemBackgroundInfo: '',
-    itemSkills: '',
+    itemSkills: [] as SkillItem[],
   });
 
   /**
@@ -103,20 +120,20 @@ export const useCustomContentStore = defineStore('customContent', () => {
       itemLifeLevel: '',
       itemGrade: 1,
       itemRace: '',
-      itemIdentity: '',
-      itemCareer: '',
+      itemIdentity: [],
+      itemCareer: [],
       itemPersonality: '',
       itemLike: '',
       itemApp: '',
       itemCloth: '',
-      itemEquip: '',
-      itemAttributes: '',
+      itemEquip: [],
+      itemAttributes: { ...defaultAttributes },
       itemStairway: '',
       itemIsContract: true,
       itemAffinity: 0,
       itemComment: '',
       itemBackgroundInfo: '',
-      itemSkills: '',
+      itemSkills: [],
     };
   };
 
