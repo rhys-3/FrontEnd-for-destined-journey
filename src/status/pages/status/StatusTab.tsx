@@ -87,60 +87,23 @@ const StatusEffects: FC<StatusEffectsProps> = ({ effects, summary, editEnabled, 
                 key={name}
                 className={`${styles.effectItem} ${typeClass} ${editEnabled ? styles.effectItemEdit : ''}`}
               >
-                {/* 左侧：名称和核心信息 */}
-                <div className={styles.effectInfo}>
-                  <div className={styles.effectHeader}>
-                    <span className={styles.effectName}>{name}</span>
-                    {editEnabled ? (
+                {editEnabled ? (
+                  <>
+                    {/* 编辑模式 */}
+                    <div className={styles.effectEditHeader}>
+                      <span className={styles.effectName}>{name}</span>
                       <EditableField
                         path={`主角.状态效果.${name}.类型`}
                         value={effect.类型 ?? '增益'}
                         type="select"
-                        label="类型"
                         selectConfig={{ options: StatusEffectTypeOptions }}
                       />
-                    ) : (
-                      effect.类型 && <span className={styles.effectType}>{effect.类型}</span>
-                    )}
-                  </div>
-                  {editEnabled ? (
-                    <div className={styles.effectEditRow}>
-                      <span className={styles.effectEditLabel}>效果</span>
-                      <EditableField
-                        path={`主角.状态效果.${name}.效果`}
-                        value={effect.效果 ?? ''}
-                        type="text"
-                        label="效果"
-                      />
-                    </div>
-                  ) : (
-                    effect.效果 && <span className={styles.effectDesc}>{effect.效果}</span>
-                  )}
-                  {editEnabled ? (
-                    <div className={styles.effectEditRow}>
-                      <span className={styles.effectEditLabel}>来源</span>
-                      <EditableField
-                        path={`主角.状态效果.${name}.来源`}
-                        value={effect.来源 ?? ''}
-                        type="text"
-                        label="来源"
-                      />
-                    </div>
-                  ) : (
-                    effect.来源 && <span className={styles.effectSource}>来源：{effect.来源}</span>
-                  )}
-                </div>
-                {/* 右侧：数值信息和操作 */}
-                <div className={styles.effectMeta}>
-                  {editEnabled ? (
-                    <>
                       <div className={styles.effectMetaItem}>
                         <span className={styles.effectMetaLabel}>层数</span>
                         <EditableField
                           path={`主角.状态效果.${name}.层数`}
                           value={effect.层数 ?? 1}
                           type="number"
-                          label="层数"
                           numberConfig={{ min: 1, step: 1 }}
                         />
                       </div>
@@ -150,7 +113,6 @@ const StatusEffects: FC<StatusEffectsProps> = ({ effects, summary, editEnabled, 
                           path={`主角.状态效果.${name}.剩余时间`}
                           value={effect.剩余时间 ?? ''}
                           type="text"
-                          label="剩余时间"
                         />
                       </div>
                       <button
@@ -160,18 +122,47 @@ const StatusEffects: FC<StatusEffectsProps> = ({ effects, summary, editEnabled, 
                       >
                         <i className="fa-solid fa-trash" />
                       </button>
-                    </>
-                  ) : (
-                    <>
+                    </div>
+                    {/* 效果文本 */}
+                    <div className={styles.effectEditContent}>
+                      <span className={styles.effectEditLabel}>效果</span>
+                      <EditableField
+                        path={`主角.状态效果.${name}.效果`}
+                        value={effect.效果 ?? ''}
+                        type="textarea"
+                      />
+                    </div>
+                    {/* 来源 */}
+                    <div className={styles.effectEditContent}>
+                      <span className={styles.effectEditLabel}>来源</span>
+                      <EditableField
+                        path={`主角.状态效果.${name}.来源`}
+                        value={effect.来源 ?? ''}
+                        type="text"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 非编辑模式：原有布局 */}
+                    <div className={styles.effectInfo}>
+                      <div className={styles.effectHeader}>
+                        <span className={styles.effectName}>{name}</span>
+                        {effect.类型 && <span className={styles.effectType}>{effect.类型}</span>}
+                      </div>
+                      {effect.效果 && <span className={styles.effectDesc}>{effect.效果}</span>}
+                      {effect.来源 && <span className={styles.effectSource}>来源：{effect.来源}</span>}
+                    </div>
+                    <div className={styles.effectMeta}>
                       {_.isNumber(effect.层数) && effect.层数 > 1 && (
                         <span className={styles.effectStack}>x{effect.层数}</span>
                       )}
                       {effect.剩余时间 && (
                         <span className={styles.effectTime}>{effect.剩余时间}</span>
                       )}
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })
@@ -235,7 +226,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
           path={path}
           value={value ?? field.defaultValue}
           type={field.type}
-          label={field.label}
         />
       </div>
     );
@@ -268,7 +258,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
             path={`主角.${field.currentKey}`}
             value={current}
             type="number"
-            label={field.currentKey}
             numberConfig={{ min: 0, max: max, step: 1 }}
           />
           <span className={styles.resourceSeparator}>/</span>
@@ -276,7 +265,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
             path={`主角.${field.maxKey}`}
             value={max}
             type="number"
-            label={field.maxKey}
             numberConfig={{ min: 0, step: 1 }}
           />
         </div>
@@ -354,7 +342,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
                 path="主角.属性点"
                 value={player.属性点 ?? 0}
                 type="number"
-                label="属性点"
                 numberConfig={{ min: 0, step: 1 }}
               />
             </div>
@@ -376,7 +363,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
                   path={`主角.属性.${key}`}
                   value={value ?? 0}
                   type="number"
-                  label={key}
                   numberConfig={{ min: 0, max: 20, step: 1 }}
                 />
               ) : (
@@ -401,7 +387,6 @@ const StatusTabContent: FC<WithMvuDataProps> = ({ data }) => {
                     path="主角.累计经验值"
                     value={player.累计经验值 ?? 0}
                     type="number"
-                    label="累计经验值"
                     numberConfig={{
                       min: 0,
                       // 如果升级所需经验是数字，则最大为 升级所需经验-1，否则不限制

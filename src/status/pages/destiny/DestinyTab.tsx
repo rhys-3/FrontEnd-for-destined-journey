@@ -73,7 +73,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
               (type === 'number' ? 0 : type === 'toggle' ? false : type === 'tags' ? [] : '')
             }
             type={type}
-            label={label}
             {...config}
           />
         ) : (
@@ -213,7 +212,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
                     path={`命定系统.命定之人.${name}.好感度`}
                     value={partner.好感度 ?? 0}
                     type="number"
-                    label="好感度"
                     numberConfig={{ min: -100, max: 100, step: 1 }}
                   />
                 ) : (
@@ -230,7 +228,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
                       path={`命定系统.命定之人.${name}.是否在场`}
                       value={partner.是否在场 ?? false}
                       type="toggle"
-                      label="是否在场"
                       toggleConfig={{ labelOff: '离场', labelOn: '在场', size: 'sm' }}
                     />
                   </div>
@@ -240,7 +237,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
                       path={`命定系统.命定之人.${name}.是否缔结契约`}
                       value={partner.是否缔结契约 ?? false}
                       type="toggle"
-                      label="是否缔结契约"
                       toggleConfig={{ labelOff: '未缔结', labelOn: '已缔结', size: 'sm' }}
                     />
                   </div>
@@ -358,7 +354,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
                             path={`命定系统.命定之人.${name}.属性.${key}`}
                             value={value ?? 0}
                             type="number"
-                            label={key}
                             numberConfig={{ min: 0, max: 20, step: 1 }}
                           />
                         ) : (
@@ -464,7 +459,6 @@ const DestinyTabContent: FC<WithMvuDataProps> = ({ data }) => {
               path="命定系统.命运点数"
               value={destinySystem?.命运点数 ?? 0}
               type="number"
-              label="命运点数"
               numberConfig={{ min: 0, step: 1 }}
             />
           ) : (

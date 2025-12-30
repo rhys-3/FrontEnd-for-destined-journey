@@ -77,8 +77,12 @@ export const KeyValueEditor: FC<KeyValueEditorProps> = ({
     setEditingValue('');
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, action: 'add' | 'edit') => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (
+    e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    action: 'add' | 'edit'
+  ) => {
+    // Ctrl+Enter 或 Cmd+Enter 提交
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (action === 'add') {
         handleAdd();
@@ -107,26 +111,42 @@ export const KeyValueEditor: FC<KeyValueEditorProps> = ({
                 <span className={styles.entryKey}>{key}</span>
                 {editingKey === key ? (
                   <div className={styles.editWrapper}>
-                    <input
-                      type={valueType === 'number' ? 'number' : 'text'}
-                      value={editingValue}
-                      onChange={e => setEditingValue(e.target.value)}
-                      onKeyDown={e => handleKeyDown(e, 'edit')}
-                      className={styles.editInput}
-                      autoFocus
-                    />
-                    <button
-                      className={`${styles.actionBtn} ${styles.confirmBtn}`}
-                      onClick={handleConfirmEdit}
-                    >
-                      <i className="fa-solid fa-check" />
-                    </button>
-                    <button
-                      className={`${styles.actionBtn} ${styles.cancelBtn}`}
-                      onClick={handleCancelEdit}
-                    >
-                      <i className="fa-solid fa-xmark" />
-                    </button>
+                    {valueType === 'number' ? (
+                      <input
+                        type="number"
+                        value={editingValue}
+                        onChange={e => setEditingValue(e.target.value)}
+                        onKeyDown={e => handleKeyDown(e, 'edit')}
+                        className={styles.editInput}
+                        autoFocus
+                      />
+                    ) : (
+                      <textarea
+                        value={editingValue}
+                        onChange={e => setEditingValue(e.target.value)}
+                        onKeyDown={e => handleKeyDown(e, 'edit')}
+                        className={styles.editTextarea}
+                        rows={3}
+                        autoFocus
+                        placeholder="Ctrl+Enter 提交"
+                      />
+                    )}
+                    <div className={styles.editActions}>
+                      <button
+                        className={`${styles.actionBtn} ${styles.confirmBtn}`}
+                        onClick={handleConfirmEdit}
+                        title="确认 (Ctrl+Enter)"
+                      >
+                        <i className="fa-solid fa-check" />
+                      </button>
+                      <button
+                        className={`${styles.actionBtn} ${styles.cancelBtn}`}
+                        onClick={handleCancelEdit}
+                        title="取消 (Esc)"
+                      >
+                        <i className="fa-solid fa-xmark" />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -164,19 +184,30 @@ export const KeyValueEditor: FC<KeyValueEditorProps> = ({
               placeholder={keyPlaceholder}
               className={styles.addInput}
             />
-            <input
-              type={valueType === 'number' ? 'number' : 'text'}
-              value={newValue}
-              onChange={e => setNewValue(e.target.value)}
-              onKeyDown={e => handleKeyDown(e, 'add')}
-              placeholder={valuePlaceholder}
-              className={styles.addInput}
-            />
+            {valueType === 'number' ? (
+              <input
+                type="number"
+                value={newValue}
+                onChange={e => setNewValue(e.target.value)}
+                onKeyDown={e => handleKeyDown(e, 'add')}
+                placeholder={valuePlaceholder}
+                className={styles.addInput}
+              />
+            ) : (
+              <textarea
+                value={newValue}
+                onChange={e => setNewValue(e.target.value)}
+                onKeyDown={e => handleKeyDown(e, 'add')}
+                placeholder={`${valuePlaceholder} (Ctrl+Enter 添加)`}
+                className={styles.addTextarea}
+                rows={2}
+              />
+            )}
             <button
               className={styles.addBtn}
               onClick={handleAdd}
               disabled={!newKey.trim() || !newValue}
-              title="添加"
+              title="添加 (Ctrl+Enter)"
             >
               <i className="fa-solid fa-plus" />
             </button>

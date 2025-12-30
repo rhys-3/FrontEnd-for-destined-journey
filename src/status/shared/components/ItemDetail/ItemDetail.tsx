@@ -108,7 +108,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                   path={`${pathPrefix}.品质`}
                   value={data.品质 ?? ''}
                   type="select"
-                  label="品质"
                   selectConfig={{ options: QUALITY_OPTIONS }}
                 />
               ) : (
@@ -126,7 +125,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                   path={`${pathPrefix}.类型`}
                   value={data.类型 ?? ''}
                   type="text"
-                  label="类型"
                 />
               ) : (
                 <span>{data.类型}</span>
@@ -144,7 +142,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                     path={`${pathPrefix}.位置`}
                     value={data.位置 ?? ''}
                     type="text"
-                    label="位置"
                   />
                 ) : (
                   <span>{data.位置}</span>
@@ -162,7 +159,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                     path={`${pathPrefix}.消耗`}
                     value={data.消耗 ?? ''}
                     type="text"
-                    label="消耗"
                   />
                 ) : (
                   <span>{data.消耗}</span>
@@ -170,33 +166,27 @@ export const ItemDetail: FC<ItemDetailProps> = ({
               </div>
             )}
 
-          {/* 数量（背包物品专用） - 编辑模式下可编辑 */}
-          {itemCategory === 'item' && (data.数量 !== undefined || editEnabled) && (
+          {/* 数量（背包物品专用） - 仅在编辑模式下显示（非编辑模式已在标题后缀显示）*/}
+          {itemCategory === 'item' && editEnabled && pathPrefix && (
             <div className={styles.itemQuantity}>
               <span className={styles.fieldLabel}>数量:</span>
-              {editEnabled && pathPrefix ? (
-                <EditableField
-                  path={`${pathPrefix}.数量`}
-                  value={data.数量 ?? 1}
-                  type="number"
-                  label="数量"
-                  numberConfig={{ min: 1, step: 1 }}
-                />
-              ) : (
-                <span>{data.数量}</span>
-              )}
+              <EditableField
+                path={`${pathPrefix}.数量`}
+                value={data.数量 ?? 1}
+                type="number"
+                numberConfig={{ min: 1, step: 1 }}
+              />
             </div>
           )}
 
-          {/* 标签 - 编辑模式下可编辑 */}
-          {(!_.isEmpty(data.标签) || editEnabled) && (
+          {/* 标签 - 只有数据存在时才显示（不提供新增） */}
+          {!_.isEmpty(data.标签) && (
             <div className={styles.itemTags}>
               {editEnabled && pathPrefix ? (
                 <EditableField
                   path={`${pathPrefix}.标签`}
                   value={data.标签 ?? []}
                   type="tags"
-                  label="标签"
                 />
               ) : (
                 data.标签?.map((tag, idx) => (
@@ -216,7 +206,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                   path={`${pathPrefix}.描述`}
                   value={data.描述 ?? ''}
                   type="textarea"
-                  label="描述"
                 />
               ) : (
                 data.描述
@@ -233,7 +222,6 @@ export const ItemDetail: FC<ItemDetailProps> = ({
                   path={`${pathPrefix}.效果`}
                   value={data.效果 ?? {}}
                   type="keyvalue"
-                  label="效果"
                 />
               ) : (
                 _.map(data.效果, (value, key) => (

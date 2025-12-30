@@ -61,7 +61,6 @@ export const Ascension: FC<AscensionProps> = ({
                     path={`${pathPrefix}.${sectionKey}.${name}`}
                     value={details ?? {}}
                     type="keyvalue"
-                    label={`${title} - ${name}`}
                   />
                 </div>
               ) : (
@@ -124,7 +123,6 @@ export const Ascension: FC<AscensionProps> = ({
                 path={`${pathPrefix}.神位`}
                 value={data.神位}
                 type="text"
-                label="神位"
               />
             ) : (
               <div className={styles.godTitle}>{data.神位}</div>
@@ -148,7 +146,6 @@ export const Ascension: FC<AscensionProps> = ({
                     path={`${pathPrefix}.神国.名称`}
                     value={data.神国?.名称}
                     type="text"
-                    label="神国名称"
                   />
                 </div>
                 <div className={styles.godInfoRow}>
@@ -157,7 +154,6 @@ export const Ascension: FC<AscensionProps> = ({
                     path={`${pathPrefix}.神国.描述`}
                     value={data.神国?.描述}
                     type="textarea"
-                    label="神国描述"
                   />
                 </div>
               </>

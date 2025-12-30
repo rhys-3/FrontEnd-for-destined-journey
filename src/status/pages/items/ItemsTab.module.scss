@@ -84,6 +84,11 @@
   letter-spacing: 0.3px;
 }
 
+.currencyEdit {
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
 .currencyItem {
   display: flex;
   align-items: center;
@@ -94,6 +99,12 @@
 
   i {
     font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .currencyEdit & {
+    min-width: 80px;
+    flex: 1 1 auto;
   }
 }
 

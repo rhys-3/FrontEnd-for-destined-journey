@@ -60,7 +60,7 @@
 
 .editWrapper {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   flex: 1;
   min-width: 0;
@@ -84,6 +84,31 @@
   }
 
   -moz-appearance: textfield;
+}
+
+.editTextarea {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--theme-window-bg);
+  border: 1px solid var(--theme-primary-bg);
+  border-radius: $border-radius-sm;
+  color: var(--theme-text-primary);
+  font-size: 11px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+
+  &::placeholder {
+    color: var(--theme-text-muted);
+  }
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .actionBtn {
@@ -150,7 +175,7 @@
 .addRow {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 4px;
   padding-top: $spacing-xs;
   border-top: 1px dashed var(--theme-card-border);
@@ -182,6 +207,29 @@
   }
 
   -moz-appearance: textfield;
+}
+
+.addTextarea {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--theme-window-bg);
+  border: none;
+  border-radius: $border-radius-sm;
+  color: var(--theme-text-primary);
+  font-size: 11px;
+  line-height: 1.4;
+  outline: none;
+  resize: vertical;
+  min-height: 40px;
+  font-family: inherit;
+
+  &:focus {
+    border: 1px solid var(--theme-primary-bg);
+  }
+
+  &::placeholder {
+    color: var(--theme-text-muted);
+  }
 }
 
 .addBtn {

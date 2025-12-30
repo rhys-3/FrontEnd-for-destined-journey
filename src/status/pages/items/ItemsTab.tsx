@@ -1,14 +1,15 @@
 import { FC, ReactNode, useMemo, useState } from 'react';
+import { useEditorSettingStore, useMvuDataStore } from '../../core/stores';
 import { sortEntriesByQuality } from '../../core/utils';
-import { Card, EmptyHint, ItemDetail } from '../../shared/components';
+import { Card, ConfirmModal, EditableField, EmptyHint, ItemDetail } from '../../shared/components';
 import { withMvuData, WithMvuDataProps } from '../../shared/hoc';
 import styles from './ItemsTab.module.scss';
 
 /** 物品类别 Tab 配置 */
 const ItemCategories = [
-  { id: 'inventory', label: '背包', icon: 'fa-solid fa-box', filterKey: '类型' },
-  { id: 'equipment', label: '装备', icon: 'fa-solid fa-shield', filterKey: '位置' },
-  { id: 'skills', label: '技能', icon: 'fa-solid fa-wand-sparkles', filterKey: '类型' },
+  { id: 'inventory', label: '背包', icon: 'fa-solid fa-box', filterKey: '类型', pathPrefix: '主角.背包', itemCategory: 'item' as const },
+  { id: 'equipment', label: '装备', icon: 'fa-solid fa-shield', filterKey: '位置', pathPrefix: '主角.装备', itemCategory: 'equipment' as const },
+  { id: 'skills', label: '技能', icon: 'fa-solid fa-wand-sparkles', filterKey: '类型', pathPrefix: '主角.技能', itemCategory: 'skill' as const },
 ] as const;
 
 type CategoryId = (typeof ItemCategories)[number]['id'];
@@ -20,10 +21,19 @@ const ALL_FILTER = '全部';
  * 物品页内容组件
  */
 const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
+  const editEnabled = useEditorSettingStore(state => state.editEnabled);
+  const { deleteField } = useMvuDataStore();
+
   const [activeCategory, setActiveCategory] = useState<CategoryId>('inventory');
   const [activeFilter, setActiveFilter] = useState<string>(ALL_FILTER);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: string; path: string; name: string } | null>(null);
 
   const player = data.主角;
+
+  /** 获取当前类别配置 */
+  const getCategoryConfig = (category: CategoryId) => {
+    return ItemCategories.find(c => c.id === category)!;
+  };
 
   /** 获取当前类别的数据源 */
   const getCategoryData = (category: CategoryId) => {
@@ -94,21 +104,65 @@ const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
     setActiveFilter(ALL_FILTER);
   };
 
+  /** 处理删除操作 */
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await deleteField(deleteTarget.path);
+      toastr.success(`已删除「${deleteTarget.name}」`);
+    } catch {
+      toastr.error('删除失败');
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
   /** 渲染货币 */
   const renderCurrency = () => {
     const money = player.金钱;
-    if (!money) return null;
+    if (!money && !editEnabled) return null;
 
     return (
-      <div className={styles.currency}>
+      <div className={`${styles.currency} ${editEnabled ? styles.currencyEdit : ''}`}>
         <span className={`${styles.currencyItem} ${styles.currencyItemGold}`}>
-          <i className="fa-solid fa-coins" /> {money.金币 ?? 0}
+          <i className="fa-solid fa-coins" />
+          {editEnabled ? (
+            <EditableField
+              path="主角.金钱.金币"
+              value={money?.金币 ?? 0}
+              type="number"
+              numberConfig={{ min: 0, step: 1 }}
+            />
+          ) : (
+            money?.金币 ?? 0
+          )}
         </span>
         <span className={`${styles.currencyItem} ${styles.currencyItemSilver}`}>
-          <i className="fa-solid fa-coins" /> {money.银币 ?? 0}
+          <i className="fa-solid fa-coins" />
+          {editEnabled ? (
+            <EditableField
+              path="主角.金钱.银币"
+              value={money?.银币 ?? 0}
+              type="number"
+              numberConfig={{ min: 0, step: 1 }}
+            />
+          ) : (
+            money?.银币 ?? 0
+          )}
         </span>
         <span className={`${styles.currencyItem} ${styles.currencyItemCopper}`}>
-          <i className="fa-solid fa-coins" /> {money.铜币 ?? 0}
+          <i className="fa-solid fa-coins" />
+          {editEnabled ? (
+            <EditableField
+              path="主角.金钱.铜币"
+              value={money?.铜币 ?? 0}
+              type="number"
+              numberConfig={{ step: 1 }}
+            />
+          ) : (
+            money?.铜币 ?? 0
+          )}
         </span>
       </div>
     );
@@ -128,11 +182,27 @@ const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
     }
 
     const sortedItems = sortItemsByQuality(items);
+    const config = getCategoryConfig(activeCategory);
 
     return (
       <div className={styles.itemList}>
         {sortedItems.map(([name, item]) => (
-          <ItemDetail key={name} name={name} data={item} titleSuffix={getTitleSuffix(item)} />
+          <ItemDetail
+            key={name}
+            name={name}
+            data={item}
+            titleSuffix={getTitleSuffix(item)}
+            editEnabled={editEnabled}
+            pathPrefix={`${config.pathPrefix}.${name}`}
+            itemCategory={config.itemCategory}
+            onDelete={() =>
+              setDeleteTarget({
+                type: config.label,
+                path: `${config.pathPrefix}.${name}`,
+                name,
+              })
+            }
+          />
         ))}
       </div>
     );
@@ -225,6 +295,21 @@ const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
 
       {/* 内容区域 */}
       <div className={styles.itemsTabContent}>{renderCategoryContent()}</div>
+
+      {/* 删除确认弹窗 */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title={`确认删除${deleteTarget?.type ?? ''}`}
+        rows={[
+          { label: '名称', value: deleteTarget?.name ?? '' },
+          { label: '提示', value: '此操作不可撤销' },
+        ]}
+        buttons={[
+          { text: '删除', variant: 'danger', onClick: handleDelete },
+          { text: '取消', variant: 'secondary', onClick: () => setDeleteTarget(null) },
+        ]}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

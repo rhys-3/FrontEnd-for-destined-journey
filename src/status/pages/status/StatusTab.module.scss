@@ -307,18 +307,34 @@
 
 // 状态效果编辑模式样式
 .effectItemEdit {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: flex-start;
-}
-
-.effectItemEdit .effectInfo {
+  display: flex;
+  flex-direction: column;
   gap: $spacing-xs;
 }
 
-.effectEditRow {
+// 编辑模式头部：名称 + 类型 + 层数 + 时间 + 删除按钮
+.effectEditHeader {
   display: flex;
   align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+
+  .effectName {
+    font-weight: 600;
+  }
+}
+
+// 编辑模式内容行：标签 + 全宽输入
+.effectEditContent {
+  display: flex;
+  align-items: flex-start;
   gap: $spacing-xs;
+  width: 100%;
+
+  > div {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .effectEditLabel {
@@ -326,28 +342,19 @@
   color: var(--theme-text-muted);
   flex-shrink: 0;
   min-width: 32px;
+  padding-top: 6px;
 }
 
 .effectMetaItem {
   display: flex;
   align-items: center;
-  gap: $spacing-xs;
+  gap: 4px;
 }
 
 .effectMetaLabel {
   font-size: 10px;
   color: var(--theme-text-muted);
   flex-shrink: 0;
-}
-
-@media (max-width: 540px) {
-  .effectItemEdit {
-    grid-template-columns: 1fr;
-  }
-
-  .effectItemEdit .effectMeta {
-    flex-wrap: wrap;
-  }
 }
 
 .effectDeleteBtn {
@@ -362,9 +369,22 @@
   cursor: pointer;
   border-radius: $border-radius-sm;
   transition: all 0.2s ease;
+  margin-left: auto;
 
   &:hover {
     color: var(--theme-error);
     background: rgba(var(--theme-error-rgb), 0.1);
+  }
+}
+
+@media (max-width: 540px) {
+  .effectEditHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-xs;
+
+    .effectDeleteBtn {
+      margin-left: 0;
+    }
   }
 }
