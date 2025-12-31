@@ -47,11 +47,17 @@ jobs:
         if: github.ref_name == 'main'
         run: echo "version=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      - name: Check if tag exists
+        id: check_tag
+        if: github.ref_name == 'main'
+        uses: mukunku/tag-exists-action@v1.6.0
+        with:
+          tag: ${{ steps.package_version.outputs.version }}
+
       - name: Create Git Tag
         id: autotag
-        if: github.ref_name == 'main'
+        if: github.ref_name == 'main' && steps.check_tag.outputs.exists == 'false'
         uses: rickstaa/action-create-tag@v1
         with:
           tag: ${{ steps.package_version.outputs.version }}
-          tag_exists_error: false
           message: "Release ${{ steps.package_version.outputs.version }}"
