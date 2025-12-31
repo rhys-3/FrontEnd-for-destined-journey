@@ -73,7 +73,7 @@
 // 货币显示
 .currency {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   letter-spacing: 0.3px;
 }
 
@@ -105,12 +105,11 @@
   color: var(--theme-currency-gold);
 }
 
-.currencyItemSilver {
-  color: var(--theme-currency-silver);
-}
-
-.currencyItemCopper {
-  color: var(--theme-currency-copper);
+.currencyUnit {
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 2px;
+  opacity: 0.8;
 }
 
 // 类别按钮

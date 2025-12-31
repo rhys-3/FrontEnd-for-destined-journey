@@ -145,19 +145,7 @@
           }
         },
         "金钱": {
-          "default": {},
-          "type": "object",
-          "properties": {
-            "金币": {
-              "type": "number"
-            },
-            "银币": {
-              "type": "number"
-            },
-            "铜币": {
-              "type": "number"
-            }
-          }
+          "type": "number"
         },
         "状态效果": {
           "default": {},

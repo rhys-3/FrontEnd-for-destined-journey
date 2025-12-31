@@ -1,7 +1,7 @@
 import { FC, ReactNode, useMemo, useState } from 'react';
 import { useDeleteConfirm } from '../../core/hooks';
 import { useEditorSettingStore } from '../../core/stores';
-import { sortEntriesByQuality } from '../../core/utils';
+import { formatMoney, sortEntriesByQuality } from '../../core/utils';
 import { Card, DeleteConfirmModal, EditableField, EmptyHint, ItemDetail } from '../../shared/components';
 import { withMvuData, WithMvuDataProps } from '../../shared/hoc';
 import styles from './ItemsTab.module.scss';
@@ -107,7 +107,7 @@ const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
 
   /** 渲染货币 */
   const renderCurrency = () => {
-    const money = player.金钱;
+    const money = player.金钱 ?? 0;
     if (!money && !editEnabled) return null;
 
     return (
@@ -116,40 +116,15 @@ const ItemsTabContent: FC<WithMvuDataProps> = ({ data }) => {
           <i className="fa-solid fa-coins" />
           {editEnabled ? (
             <EditableField
-              path="主角.金钱.金币"
-              value={money?.金币 ?? 0}
-              type="number"
-              numberConfig={{ min: 0, step: 1 }}
-            />
-          ) : (
-            money?.金币 ?? 0
-          )}
-        </span>
-        <span className={`${styles.currencyItem} ${styles.currencyItemSilver}`}>
-          <i className="fa-solid fa-coins" />
-          {editEnabled ? (
-            <EditableField
-              path="主角.金钱.银币"
-              value={money?.银币 ?? 0}
-              type="number"
-              numberConfig={{ min: 0, step: 1 }}
-            />
-          ) : (
-            money?.银币 ?? 0
-          )}
-        </span>
-        <span className={`${styles.currencyItem} ${styles.currencyItemCopper}`}>
-          <i className="fa-solid fa-coins" />
-          {editEnabled ? (
-            <EditableField
-              path="主角.金钱.铜币"
-              value={money?.铜币 ?? 0}
+              path="主角.金钱"
+              value={money}
               type="number"
               numberConfig={{ step: 1 }}
             />
           ) : (
-            money?.铜币 ?? 0
+            formatMoney(money)
           )}
+          <span className={styles.currencyUnit}>G</span>
         </span>
       </div>
     );
