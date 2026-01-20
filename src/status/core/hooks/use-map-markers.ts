@@ -8,6 +8,7 @@ interface UseMapMarkersOptions {
   classNames: {
     mapMarker: string;
     mapMarkerActive: string;
+    mapMarkerDrawMode: string;
     mapMarkerIcon: string;
     mapMarkerIconNode: string;
     mapMarkerLabel: string;
@@ -15,7 +16,18 @@ interface UseMapMarkersOptions {
     mapMarkerTitle: string;
     mapMarkerGroup: string;
     mapMarkerSummary: string;
+    mapMarkerCarousel: string;
+    mapMarkerCarouselInner: string;
+    mapMarkerCarouselItem: string;
+    mapMarkerCarouselItemActive: string;
+    mapMarkerCarouselNav: string;
+    mapMarkerCarouselDot: string;
+    mapMarkerCarouselDotActive: string;
+    mapMarkerCarouselArrow: string;
+    mapMarkerCarouselArrowPrev: string;
+    mapMarkerCarouselArrowNext: string;
   };
+  drawMode?: boolean;
   onMarkerSelect?: (id: string | null) => void;
 }
 
@@ -43,12 +55,15 @@ interface UseMapMarkersResult {
 export const useMapMarkers = ({
   viewerRef,
   classNames,
+  drawMode = false,
   onMarkerSelect,
 }: UseMapMarkersOptions): UseMapMarkersResult => {
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [markerAddMode, setMarkerAddMode] = useState(false);
   const overlayMapRef = useRef<Map<string, HTMLElement>>(new Map());
+  // 卡片元素映射（Portal 到 body 的卡片）
+  const cardMapRef = useRef<Map<string, HTMLElement>>(new Map());
   const syncMarkerOverlaysRef = useRef<() => void>(() => undefined);
   const updateSingleMarkerRef = useRef<(id: string) => void>(() => undefined);
   const createMarkerElementRef = useRef<(marker: MapMarker) => HTMLElement>(null!);
@@ -57,6 +72,8 @@ export const useMapMarkers = ({
   >(null!);
   const activeMarkerIdRef = useRef<string | null>(null);
   const mapMarkersRef = useRef<MapMarker[]>([]);
+  // 当前显示的卡片 ID
+  const visibleCardIdRef = useRef<string | null>(null);
 
   const createMarkerId = () => {
     return `marker-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -81,6 +98,13 @@ export const useMapMarkers = ({
       setMapMarkers(prev => prev.filter(marker => marker.id !== id));
       setActiveMarkerId(prev => (prev === id ? null : prev));
       onMarkerSelect?.(null);
+      // 清理 Portal 卡片
+      const cardMap = cardMapRef.current;
+      const card = cardMap.get(id);
+      if (card) {
+        card.remove();
+        cardMap.delete(id);
+      }
     },
     [onMarkerSelect],
   );
@@ -141,8 +165,16 @@ export const useMapMarkers = ({
 
   const updateMarkerElement = useCallback(
     (element: HTMLElement, marker: MapMarker, isActive: boolean) => {
-      element.className =
-        `${classNames.mapMarker} ${isActive ? classNames.mapMarkerActive : ''}`.trim();
+      // 构建类名：基础类 + 激活状态 + 绘制模式
+      const classNameParts = [classNames.mapMarker];
+      if (isActive) {
+        classNameParts.push(classNames.mapMarkerActive);
+      }
+      if (drawMode) {
+        classNameParts.push(classNames.mapMarkerDrawMode);
+      }
+      element.className = classNameParts.join(' ');
+
       const iconElement = element.querySelector(
         `.${classNames.mapMarkerIcon}`,
       ) as HTMLDivElement | null;
@@ -152,14 +184,20 @@ export const useMapMarkers = ({
       const labelElement = element.querySelector(
         `.${classNames.mapMarkerLabel}`,
       ) as HTMLDivElement | null;
-      const titleElement = element.querySelector(
+
+      // Portal 模式：从 cardMapRef 获取卡片元素
+      const cardElement = cardMapRef.current.get(marker.id);
+      const titleElement = cardElement?.querySelector(
         `.${classNames.mapMarkerTitle}`,
       ) as HTMLDivElement | null;
-      const groupElement = element.querySelector(
+      const groupElement = cardElement?.querySelector(
         `.${classNames.mapMarkerGroup}`,
       ) as HTMLDivElement | null;
-      const summaryElement = element.querySelector(
+      const summaryElement = cardElement?.querySelector(
         `.${classNames.mapMarkerSummary}`,
+      ) as HTMLDivElement | null;
+      const carouselElement = cardElement?.querySelector(
+        `.${classNames.mapMarkerCarousel}`,
       ) as HTMLDivElement | null;
 
       if (iconElement) {
@@ -192,8 +230,270 @@ export const useMapMarkers = ({
           summaryElement.style.display = 'none';
         }
       }
+      // 处理轮播图
+      if (carouselElement) {
+        const imageUrls = marker.imageUrls ?? [];
+        if (imageUrls.length > 0) {
+          carouselElement.style.display = 'block';
+          const innerElement = carouselElement.querySelector(
+            `.${classNames.mapMarkerCarouselInner}`,
+          ) as HTMLDivElement | null;
+          const navElement = carouselElement.querySelector(
+            `.${classNames.mapMarkerCarouselNav}`,
+          ) as HTMLDivElement | null;
+          const prevArrow = carouselElement.querySelector(
+            `.${classNames.mapMarkerCarouselArrowPrev}`,
+          ) as HTMLButtonElement | null;
+          const nextArrow = carouselElement.querySelector(
+            `.${classNames.mapMarkerCarouselArrowNext}`,
+          ) as HTMLButtonElement | null;
+
+          if (innerElement) {
+            // 清空现有图片
+            innerElement.innerHTML = '';
+            // 添加新图片
+            imageUrls.forEach((url, index) => {
+              const itemElement = document.createElement('div');
+              itemElement.className = `${classNames.mapMarkerCarouselItem} ${
+                index === 0 ? classNames.mapMarkerCarouselItemActive : ''
+              }`;
+              const imgElement = document.createElement('img');
+              imgElement.src = url;
+              imgElement.alt = `${marker.name || '标记'} - 图片 ${index + 1}`;
+              itemElement.appendChild(imgElement);
+              innerElement.appendChild(itemElement);
+            });
+          }
+
+          // 切换到指定索引的图片
+          const switchToIndex = (targetIndex: number) => {
+            const items = innerElement?.querySelectorAll(`.${classNames.mapMarkerCarouselItem}`);
+            const dots = navElement?.querySelectorAll(`.${classNames.mapMarkerCarouselDot}`);
+            items?.forEach((item, i) => {
+              item.className = `${classNames.mapMarkerCarouselItem} ${
+                i === targetIndex ? classNames.mapMarkerCarouselItemActive : ''
+              }`;
+            });
+            dots?.forEach((dot, i) => {
+              dot.className = `${classNames.mapMarkerCarouselDot} ${
+                i === targetIndex ? classNames.mapMarkerCarouselDotActive : ''
+              }`;
+            });
+          };
+
+          // 获取当前激活的索引
+          const getCurrentIndex = () => {
+            const items = innerElement?.querySelectorAll(`.${classNames.mapMarkerCarouselItem}`);
+            if (!items) return 0;
+            for (let i = 0; i < items.length; i++) {
+              if (items[i].classList.contains(classNames.mapMarkerCarouselItemActive)) {
+                return i;
+              }
+            }
+            return 0;
+          };
+
+          // 多张图片时显示箭头
+          if (imageUrls.length > 1) {
+            if (prevArrow) {
+              prevArrow.style.display = 'flex';
+              prevArrow.onclick = event => {
+                event.stopPropagation();
+                const currentIndex = getCurrentIndex();
+                const newIndex = currentIndex === 0 ? imageUrls.length - 1 : currentIndex - 1;
+                switchToIndex(newIndex);
+              };
+            }
+            if (nextArrow) {
+              nextArrow.style.display = 'flex';
+              nextArrow.onclick = event => {
+                event.stopPropagation();
+                const currentIndex = getCurrentIndex();
+                const newIndex = currentIndex === imageUrls.length - 1 ? 0 : currentIndex + 1;
+                switchToIndex(newIndex);
+              };
+            }
+          } else {
+            if (prevArrow) prevArrow.style.display = 'none';
+            if (nextArrow) nextArrow.style.display = 'none';
+          }
+
+          if (navElement) {
+            // 清空现有导航点
+            navElement.innerHTML = '';
+            // 只有多张图片时才显示导航点
+            if (imageUrls.length > 1) {
+              navElement.style.display = 'flex';
+              imageUrls.forEach((_, index) => {
+                const dotElement = document.createElement('button');
+                dotElement.className = `${classNames.mapMarkerCarouselDot} ${
+                  index === 0 ? classNames.mapMarkerCarouselDotActive : ''
+                }`;
+                dotElement.type = 'button';
+                dotElement.dataset.index = String(index);
+                dotElement.addEventListener('click', event => {
+                  event.stopPropagation();
+                  switchToIndex(index);
+                });
+                navElement.appendChild(dotElement);
+              });
+            } else {
+              navElement.style.display = 'none';
+            }
+          }
+        } else {
+          carouselElement.style.display = 'none';
+        }
+      }
     },
-    [classNames],
+    [classNames, drawMode],
+  );
+
+  // 创建 Portal 卡片容器（全局唯一）
+  const getOrCreateCardContainer = useCallback(() => {
+    let container = document.getElementById('map-marker-card-portal');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'map-marker-card-portal';
+      container.style.cssText =
+        'position: fixed; top: 0; left: 0; z-index: 10000; pointer-events: none;';
+      document.body.appendChild(container);
+    }
+    return container;
+  }, []);
+
+  // 显示卡片并定位
+  const showCard = useCallback((markerId: string, markerElement: HTMLElement) => {
+    const cardMap = cardMapRef.current;
+    const card = cardMap.get(markerId);
+    if (!card) return;
+
+    // 隐藏其他卡片
+    cardMap.forEach((c, id) => {
+      if (id !== markerId) {
+        c.style.display = 'none';
+      }
+    });
+
+    // 计算标记在视口中的位置
+    const markerRect = markerElement.getBoundingClientRect();
+    const cardWidth = 300; // 卡片预估宽度
+
+    // 卡片显示在标记上方，水平居中
+    let leftPos = markerRect.left + markerRect.width / 2 - cardWidth / 2;
+    const bottomPos = window.innerHeight - markerRect.top + 10;
+
+    // 边界检测：防止卡片超出视口
+    if (leftPos < 10) leftPos = 10;
+    if (leftPos + cardWidth > window.innerWidth - 10) {
+      leftPos = window.innerWidth - cardWidth - 10;
+    }
+
+    card.style.cssText = `
+      position: fixed;
+      left: ${leftPos}px;
+      bottom: ${bottomPos}px;
+      display: block;
+      pointer-events: auto;
+      z-index: 10001;
+    `;
+    visibleCardIdRef.current = markerId;
+  }, []);
+
+  // 隐藏卡片
+  const hideCard = useCallback((markerId: string) => {
+    const cardMap = cardMapRef.current;
+    const card = cardMap.get(markerId);
+    if (card) {
+      card.style.display = 'none';
+    }
+    if (visibleCardIdRef.current === markerId) {
+      visibleCardIdRef.current = null;
+    }
+  }, []);
+
+  // 隐藏所有卡片
+  const hideAllCards = useCallback(() => {
+    const cardMap = cardMapRef.current;
+    cardMap.forEach(card => {
+      card.style.display = 'none';
+    });
+    visibleCardIdRef.current = null;
+  }, []);
+
+  // 创建 Portal 卡片元素
+  const createCardElement = useCallback(
+    (marker: MapMarker) => {
+      const cardElement = document.createElement('div');
+      cardElement.className = classNames.mapMarkerCard;
+      cardElement.style.display = 'none';
+      cardElement.dataset.markerId = marker.id;
+
+      // 阻止卡片上的点击事件冒泡
+      cardElement.addEventListener('click', event => {
+        event.stopPropagation();
+      });
+      cardElement.addEventListener('mousedown', event => {
+        event.stopPropagation();
+      });
+      cardElement.addEventListener('pointerdown', event => {
+        event.stopPropagation();
+      });
+
+      // 鼠标进入卡片时保持显示
+      cardElement.addEventListener('mouseenter', () => {
+        visibleCardIdRef.current = marker.id;
+      });
+
+      // 鼠标离开卡片时隐藏
+      cardElement.addEventListener('mouseleave', () => {
+        hideCard(marker.id);
+      });
+
+      const titleElement = document.createElement('div');
+      titleElement.className = classNames.mapMarkerTitle;
+      const groupElement = document.createElement('div');
+      groupElement.className = classNames.mapMarkerGroup;
+      const summaryElement = document.createElement('div');
+      summaryElement.className = classNames.mapMarkerSummary;
+
+      // 创建轮播图容器
+      const carouselElement = document.createElement('div');
+      carouselElement.className = classNames.mapMarkerCarousel;
+      const carouselInnerElement = document.createElement('div');
+      carouselInnerElement.className = classNames.mapMarkerCarouselInner;
+      const carouselNavElement = document.createElement('div');
+      carouselNavElement.className = classNames.mapMarkerCarouselNav;
+
+      // 创建左右箭头按钮
+      const prevArrowElement = document.createElement('button');
+      prevArrowElement.type = 'button';
+      prevArrowElement.className = `${classNames.mapMarkerCarouselArrow} ${classNames.mapMarkerCarouselArrowPrev}`;
+      prevArrowElement.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+      prevArrowElement.style.display = 'none';
+
+      const nextArrowElement = document.createElement('button');
+      nextArrowElement.type = 'button';
+      nextArrowElement.className = `${classNames.mapMarkerCarouselArrow} ${classNames.mapMarkerCarouselArrowNext}`;
+      nextArrowElement.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+      nextArrowElement.style.display = 'none';
+
+      carouselElement.append(
+        prevArrowElement,
+        carouselInnerElement,
+        nextArrowElement,
+        carouselNavElement,
+      );
+
+      cardElement.append(titleElement, groupElement, summaryElement, carouselElement);
+
+      // 添加到 Portal 容器
+      const container = getOrCreateCardContainer();
+      container.appendChild(cardElement);
+
+      return cardElement;
+    },
+    [classNames, getOrCreateCardContainer, hideCard],
   );
 
   const createMarkerElement = useCallback(
@@ -213,28 +513,67 @@ export const useMapMarkers = ({
       const labelElement = document.createElement('div');
       labelElement.className = classNames.mapMarkerLabel;
 
-      const cardElement = document.createElement('div');
-      cardElement.className = classNames.mapMarkerCard;
-      const titleElement = document.createElement('div');
-      titleElement.className = classNames.mapMarkerTitle;
-      const groupElement = document.createElement('div');
-      groupElement.className = classNames.mapMarkerGroup;
-      const summaryElement = document.createElement('div');
-      summaryElement.className = classNames.mapMarkerSummary;
-      cardElement.append(titleElement, groupElement, summaryElement);
+      element.append(iconElement, labelElement);
 
-      element.append(iconElement, labelElement, cardElement);
+      // 创建 Portal 卡片
+      const cardElement = createCardElement(marker);
+      cardMapRef.current.set(marker.id, cardElement);
 
-      const handleSelect = () => {
-        setActiveMarkerId(marker.id);
-        onMarkerSelect?.(marker.id);
-      };
+      // 检测是否为触摸设备
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-      element.addEventListener('click', handleSelect);
+      if (isTouchDevice) {
+        // 移动端：点击切换卡片显示
+        element.addEventListener('click', event => {
+          event.stopPropagation();
+          if (visibleCardIdRef.current === marker.id) {
+            // 如果当前卡片已显示，则隐藏
+            hideCard(marker.id);
+          } else {
+            // 否则显示当前卡片
+            showCard(marker.id, element);
+          }
+          // 同时触发选中
+          setActiveMarkerId(marker.id);
+          onMarkerSelect?.(marker.id);
+        });
+
+        // 点击其他地方隐藏卡片
+        const handleDocumentClick = () => {
+          if (visibleCardIdRef.current === marker.id) {
+            hideCard(marker.id);
+          }
+        };
+        document.addEventListener('click', handleDocumentClick);
+      } else {
+        // 桌面端：hover 显示卡片
+        element.addEventListener('mouseenter', () => {
+          showCard(marker.id, element);
+        });
+
+        // 鼠标离开标记时，设置定时器隐藏卡片
+        element.addEventListener('mouseleave', () => {
+          // 给用户 100ms 时间移动到卡片上
+          setTimeout(() => {
+            // 检查鼠标是否在卡片上
+            const card = cardMapRef.current.get(marker.id);
+            if (card && !card.matches(':hover') && visibleCardIdRef.current === marker.id) {
+              hideCard(marker.id);
+            }
+          }, 100);
+        });
+
+        // 点击选中标记
+        const handleSelect = () => {
+          setActiveMarkerId(marker.id);
+          onMarkerSelect?.(marker.id);
+        };
+        element.addEventListener('click', handleSelect);
+      }
 
       return element;
     },
-    [classNames, onMarkerSelect],
+    [classNames, onMarkerSelect, createCardElement, showCard, hideCard],
   );
 
   // 保持回调函数和状态的最新引用，避免 syncMarkerOverlays 依赖频繁变化
@@ -338,6 +677,11 @@ export const useMapMarkers = ({
   useEffect(() => {
     updateActiveState();
   }, [activeMarkerId, updateActiveState]);
+
+  // 当 drawMode 变化时，更新所有标记的绘制模式状态
+  useEffect(() => {
+    updateActiveState();
+  }, [drawMode, updateActiveState]);
 
   return {
     markers: mapMarkers,

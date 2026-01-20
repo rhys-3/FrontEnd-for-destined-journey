@@ -26,6 +26,7 @@ export const MapTab: FC = () => {
   const [editingName, setEditingName] = useState('');
   const [editingGroup, setEditingGroup] = useState('');
   const [editingDescription, setEditingDescription] = useState('');
+  const [editingImageUrls, setEditingImageUrls] = useState<string[]>([]);
   const inlineContainerRef = useRef<HTMLDivElement | null>(null);
   const inlineCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null);
@@ -37,6 +38,7 @@ export const MapTab: FC = () => {
     () => ({
       mapMarker: styles.mapMarker,
       mapMarkerActive: styles.mapMarkerActive,
+      mapMarkerDrawMode: styles.mapMarkerDrawMode,
       mapMarkerIcon: styles.mapMarkerIcon,
       mapMarkerIconNode: styles.mapMarkerIconNode,
       mapMarkerLabel: styles.mapMarkerLabel,
@@ -44,6 +46,16 @@ export const MapTab: FC = () => {
       mapMarkerTitle: styles.mapMarkerTitle,
       mapMarkerGroup: styles.mapMarkerGroup,
       mapMarkerSummary: styles.mapMarkerSummary,
+      mapMarkerCarousel: styles.mapMarkerCarousel,
+      mapMarkerCarouselInner: styles.mapMarkerCarouselInner,
+      mapMarkerCarouselItem: styles.mapMarkerCarouselItem,
+      mapMarkerCarouselItemActive: styles.mapMarkerCarouselItemActive,
+      mapMarkerCarouselNav: styles.mapMarkerCarouselNav,
+      mapMarkerCarouselDot: styles.mapMarkerCarouselDot,
+      mapMarkerCarouselDotActive: styles.mapMarkerCarouselDotActive,
+      mapMarkerCarouselArrow: styles.mapMarkerCarouselArrow,
+      mapMarkerCarouselArrowPrev: styles.mapMarkerCarouselArrowPrev,
+      mapMarkerCarouselArrowNext: styles.mapMarkerCarouselArrowNext,
     }),
     [],
   );
@@ -65,6 +77,7 @@ export const MapTab: FC = () => {
   } = useMapMarkers({
     viewerRef,
     classNames: markerClassNames,
+    drawMode,
   });
 
   // 包装 updateMarker，仅更新状态，不立即刷新 DOM
@@ -97,6 +110,7 @@ export const MapTab: FC = () => {
       setEditingName(activeMarker.name);
       setEditingGroup(activeMarker.group ?? '');
       setEditingDescription(activeMarker.description ?? '');
+      setEditingImageUrls(activeMarker.imageUrls ?? []);
     }
   }, [activeMarkerId]); // 只在切换标记时同步，不监听 activeMarker 避免循环
 
@@ -268,7 +282,7 @@ export const MapTab: FC = () => {
   }, [addMarkerAt, drawMode, markerAddMode]);
 
   return (
-    <div className={styles.mapTab}>
+    <div className={styles.mapTab} data-page="map">
       <div className={styles.mapContent}>
         <div className={styles.toolbar}>
           <div className={styles.toolbarActions}>
@@ -466,6 +480,60 @@ export const MapTab: FC = () => {
                       }}
                       placeholder="输入标记说明"
                     />
+                  </div>
+                  <div className={styles.formRow}>
+                    <label className={styles.formLabel}>
+                      图片链接组
+                      <span className={styles.formLabelHint}>
+                        （每行一个链接，支持多张图片轮播）
+                      </span>
+                    </label>
+                    <textarea
+                      className={styles.formTextarea}
+                      value={editingImageUrls.join('\n')}
+                      onChange={event => {
+                        const urls = event.target.value.split('\n').map(url => url.trim());
+                        setEditingImageUrls(urls);
+                      }}
+                      onBlur={() => {
+                        const validUrls = editingImageUrls.filter(url => url.length > 0);
+                        updateMarker(activeMarker.id, { imageUrls: validUrls });
+                        flushMarkerUpdate(activeMarker.id);
+                      }}
+                      placeholder="每行输入一个图片链接&#10;例如：https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                    />
+                    {editingImageUrls.filter(url => url.length > 0).length > 0 && (
+                      <div className={styles.imagePreviewList}>
+                        {editingImageUrls
+                          .filter(url => url.length > 0)
+                          .map((url, index) => (
+                            <div key={index} className={styles.imagePreviewItem}>
+                              <img
+                                src={url}
+                                alt={`预览 ${index + 1}`}
+                                className={styles.imagePreviewThumb}
+                                onError={event => {
+                                  (event.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className={styles.imagePreviewRemove}
+                                onClick={() => {
+                                  const newUrls = editingImageUrls.filter((_, i) => i !== index);
+                                  setEditingImageUrls(newUrls);
+                                  updateMarker(activeMarker.id, {
+                                    imageUrls: newUrls.filter(u => u.length > 0),
+                                  });
+                                  flushMarkerUpdate(activeMarker.id);
+                                }}
+                              >
+                                <i className="fa-solid fa-xmark" />
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                   <div className={styles.formActions}>
                     <button

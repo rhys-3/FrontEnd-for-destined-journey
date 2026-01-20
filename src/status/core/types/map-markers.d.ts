@@ -15,6 +15,7 @@ export interface MapMarker {
   name: string;
   group?: string;
   description?: string;
+  imageUrls?: string[];
   icon?: MapMarkerIcon;
   color?: string;
   position: { nx: number; ny: number };

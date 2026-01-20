@@ -402,12 +402,31 @@
   width: 18px;
   height: 18px;
   transform: translate(-50%, -50%);
-  cursor: grab;
+  cursor: pointer;
   pointer-events: auto;
+
+  // 扩大悬浮检测区域，防止鼠标轻微移动就离开标记
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    // background: rgba(255, 0, 0, 0.1); // 调试用：可视化悬浮区域
+  }
 }
 
 .mapMarkerActive {
   z-index: 4;
+}
+
+// 绘制模式下禁用标记交互
+.mapMarkerDrawMode {
+  pointer-events: none !important;
+  cursor: default;
 }
 
 .mapMarkerIcon {
@@ -456,27 +475,17 @@
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
+// Portal 卡片样式（渲染到 body 层级）
 .mapMarkerCard {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 180px;
+  max-width: min(400px, 85vw);
+  width: max-content;
   padding: $spacing-xs $spacing-sm;
   border-radius: $border-radius-sm;
   border: 1px solid var(--theme-card-border);
   background: var(--theme-window-bg);
   color: var(--theme-text-primary);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 2;
-}
-
-.mapMarker:hover .mapMarkerCard {
-  opacity: 1;
 }
 
 .mapMarkerTitle {
@@ -491,10 +500,154 @@
   margin-bottom: 6px;
 }
 
-.mapMarkerImage {
+// 轮播图容器样式
+.mapMarkerCarousel {
   width: 100%;
+  position: relative;
+  margin-top: 6px;
+}
+
+.mapMarkerCarouselInner {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
   border-radius: $border-radius-sm;
+}
+
+.mapMarkerCarouselItem {
+  display: none;
+  width: 100%;
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: $border-radius-sm;
+  }
+}
+
+.mapMarkerCarouselItemActive {
   display: block;
+}
+
+.mapMarkerCarouselNav {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.mapMarkerCarouselDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  background: var(--theme-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: var(--theme-text-secondary);
+  }
+}
+
+.mapMarkerCarouselDotActive {
+  background: var(--theme-primary-bg);
+
+  &:hover {
+    background: var(--theme-primary-bg);
+  }
+}
+
+// 轮播图左右箭头按钮
+.mapMarkerCarouselArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  &:active {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+.mapMarkerCarouselArrowPrev {
+  left: 4px;
+}
+
+.mapMarkerCarouselArrowNext {
+  right: 4px;
+}
+
+// 图片预览列表样式
+.imagePreviewList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+}
+
+.imagePreviewItem {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: $border-radius-sm;
+  overflow: hidden;
+  border: 1px solid var(--theme-card-border);
+}
+
+.imagePreviewThumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imagePreviewRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  .imagePreviewItem:hover & {
+    opacity: 1;
+  }
+}
+
+.formLabelHint {
+  font-size: 10px;
+  color: var(--theme-text-muted);
+  margin-left: 4px;
+  font-weight: normal;
 }
 
 .drawLayer {
