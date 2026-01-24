@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import {
+  FormCascader,
   FormInput,
   FormLabel,
   FormNumber,
@@ -15,7 +16,7 @@ import {
   getIdentityCosts,
   getLevelTierName,
   getRaceCosts,
-  getStartLocations,
+  getStartLocationsCascader,
   getTierAttributeBonus,
   MAX_LEVEL,
   MIN_LEVEL,
@@ -30,7 +31,7 @@ const { addAttributePoint, removeAttributePoint } = characterStore;
 const genders = getGenders;
 const raceCosts = getRaceCosts;
 const identityCosts = getIdentityCosts;
-const startLocations = getStartLocations;
+const startLocationsCascader = getStartLocationsCascader;
 
 const raceOptions = computed(() => Object.keys(raceCosts.value));
 const identityOptions = computed(() => Object.keys(identityCosts.value));
@@ -94,6 +95,8 @@ const levelTierName = computed(() => {
           <FormLabel label="种族" required />
           <FormSelect
             v-model="character.race"
+            searchable
+            search-placeholder="搜索种族..."
             :options="
               raceOptions.map(race => ({
                 label:
@@ -116,6 +119,8 @@ const levelTierName = computed(() => {
           <FormLabel label="身份" required />
           <FormSelect
             v-model="character.identity"
+            searchable
+            search-placeholder="搜索身份..."
             :options="
               identityOptions.map(identity => ({
                 label:
@@ -136,11 +141,16 @@ const levelTierName = computed(() => {
         </div>
       </div>
 
-      <!-- 第四行：起始地点 -->
+      <!-- 第四行：起始地点（使用级联选择器） -->
       <div class="form-row full-width">
         <div class="form-field">
           <FormLabel label="起始地点" required />
-          <FormSelect v-model="character.startLocation" :options="startLocations" />
+          <FormCascader
+            v-model="character.startLocation"
+            :options="startLocationsCascader"
+            placeholder="请选择起始地点"
+            search-placeholder="搜索地点..."
+          />
           <FormTextarea
             v-if="character.startLocation === '自定义'"
             v-model="character.customStartLocation"

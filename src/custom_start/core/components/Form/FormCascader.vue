@@ -1,38 +1,36 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import CascaderTreeNode, { type CascaderOption } from './CascaderTreeNode.vue';
 
-interface Option {
-  label: string;
-  value: string | number;
-  disabled?: boolean;
-}
+// 重新导出类型供外部使用
+export type { CascaderOption };
 
 interface Props {
-  modelValue: string | number;
-  options: Option[] | readonly string[] | string[];
+  modelValue: string;
+  options: CascaderOption[];
   placeholder?: string;
   disabled?: boolean;
-  searchable?: boolean;
   searchPlaceholder?: string;
+  separator?: string;
 }
 
 interface Emits {
-  (e: 'update:modelValue', value: string | number): void;
-  (e: 'change', value: string | number): void;
+  (e: 'update:modelValue', value: string): void;
+  (e: 'change', value: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '请选择',
   disabled: false,
-  searchable: false,
   searchPlaceholder: '搜索...',
+  separator: '-',
 });
 
 const emit = defineEmits<Emits>();
 
-// 搜索相关状态
-const searchQuery = ref('');
+// 状态
 const isOpen = ref(false);
+const searchQuery = ref('');
+const expandedNodes = ref<Set<string>>(new Set());
 const wrapperRef = ref<HTMLElement | null>(null);
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
@@ -41,30 +39,53 @@ const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 };
 
-// 规范化选项格式
-const normalizedOptions = computed(() => {
-  return props.options.map(option => {
-    if (typeof option === 'string') {
-      return { label: option, value: option, disabled: false };
-    }
-    return option;
-  });
-});
-
-// 过滤后的选项
-const filteredOptions = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return normalizedOptions.value;
-  }
-  const query = searchQuery.value.toLowerCase();
-  return normalizedOptions.value.filter(option => option.label.toLowerCase().includes(query));
-});
-
-// 当前选中项的显示文本
+// 获取当前选中值的显示文本
 const displayText = computed(() => {
-  const selected = normalizedOptions.value.find(opt => opt.value === props.modelValue);
-  return selected ? selected.label : props.placeholder;
+  if (!props.modelValue) return props.placeholder;
+  return props.modelValue;
 });
+
+// 展平所有选项用于搜索
+const flattenOptions = (
+  options: CascaderOption[],
+  parentPath = '',
+): Array<{ option: CascaderOption; path: string; fullValue: string }> => {
+  const result: Array<{ option: CascaderOption; path: string; fullValue: string }> = [];
+
+  for (const option of options) {
+    const currentPath = parentPath
+      ? `${parentPath}${props.separator}${option.label}`
+      : option.label;
+    // option.value 已经包含完整路径，直接使用
+    const fullValue = option.value;
+
+    result.push({ option, path: currentPath, fullValue });
+
+    if (option.children && option.children.length > 0) {
+      result.push(...flattenOptions(option.children, currentPath));
+    }
+  }
+
+  return result;
+};
+
+// 搜索过滤后的扁平选项（只显示可选择的叶子节点）
+const filteredFlatOptions = computed(() => {
+  if (!searchQuery.value.trim()) return [];
+
+  const query = searchQuery.value.toLowerCase();
+  const flat = flattenOptions(props.options);
+
+  // 过滤：1. 匹配搜索词 2. 只保留叶子节点（无子节点的才可选）
+  return flat.filter(
+    item =>
+      item.path.toLowerCase().includes(query) &&
+      !(item.option.children && item.option.children.length > 0),
+  );
+});
+
+// 是否处于搜索模式
+const isSearchMode = computed(() => searchQuery.value.trim().length > 0);
 
 // 高亮匹配文本
 const highlightMatch = (text: string): string => {
@@ -74,11 +95,35 @@ const highlightMatch = (text: string): string => {
   return text.replace(regex, '<mark class="highlight">$1</mark>');
 };
 
+// 切换节点展开状态
+const toggleNode = (nodeValue: string) => {
+  if (expandedNodes.value.has(nodeValue)) {
+    expandedNodes.value.delete(nodeValue);
+  } else {
+    expandedNodes.value.add(nodeValue);
+  }
+  // 触发响应式更新
+  expandedNodes.value = new Set(expandedNodes.value);
+};
+
 // 选择选项
-const selectOption = (option: Option) => {
-  if (option.disabled) return;
-  emit('update:modelValue', option.value);
-  emit('change', option.value);
+const selectOption = (value: string, hasChildren: boolean) => {
+  // 如果有子节点，只展开不选择
+  if (hasChildren) {
+    toggleNode(value);
+    return;
+  }
+
+  emit('update:modelValue', value);
+  emit('change', value);
+  isOpen.value = false;
+  searchQuery.value = '';
+};
+
+// 从搜索结果中选择
+const selectFromSearch = (fullValue: string) => {
+  emit('update:modelValue', fullValue);
+  emit('change', fullValue);
   isOpen.value = false;
   searchQuery.value = '';
 };
@@ -89,7 +134,7 @@ const toggleDropdown = () => {
   isOpen.value = !isOpen.value;
   // 仅在非触摸设备（PC端）自动聚焦搜索框
   // 移动端不自动聚焦，避免虚拟键盘弹出遮挡选项
-  if (isOpen.value && props.searchable && !isTouchDevice()) {
+  if (isOpen.value && !isTouchDevice()) {
     nextTick(() => {
       searchInputRef.value?.focus();
     });
@@ -112,16 +157,23 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 };
 
-// 非搜索模式下的原生 select 处理
-const handleNativeChange = (event: Event) => {
-  const target = event.target as HTMLSelectElement;
-  emit('update:modelValue', target.value);
-  emit('change', target.value);
+// 初始化时展开选中值的父节点
+const initExpandedNodes = () => {
+  if (!props.modelValue) return;
+
+  const parts = props.modelValue.split(props.separator);
+  let path = '';
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    path = path ? `${path}${props.separator}${parts[i]}` : parts[i];
+    expandedNodes.value.add(path);
+  }
 };
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   document.addEventListener('keydown', handleKeydown);
+  initExpandedNodes();
 });
 
 onUnmounted(() => {
@@ -129,29 +181,36 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 
-// 当下拉框关闭时清空搜索
 watch(isOpen, newVal => {
   if (!newVal) {
     searchQuery.value = '';
   }
 });
+
+watch(
+  () => props.modelValue,
+  () => {
+    initExpandedNodes();
+  },
+);
 </script>
 
 <template>
-  <!-- 可搜索模式：自定义下拉 -->
-  <div v-if="searchable" ref="wrapperRef" class="form-select-wrapper searchable">
+  <div ref="wrapperRef" class="cascader-wrapper">
     <!-- 触发器 -->
     <div
-      class="form-select-trigger"
+      class="cascader-trigger"
       :class="{ 'is-open': isOpen, 'is-disabled': disabled }"
       @click="toggleDropdown"
     >
-      <span class="selected-text">{{ displayText }}</span>
-      <span class="select-arrow" :class="{ rotated: isOpen }">▼</span>
+      <span class="selected-text" :class="{ placeholder: !modelValue }">
+        {{ displayText }}
+      </span>
+      <span class="trigger-arrow" :class="{ rotated: isOpen }">▼</span>
     </div>
 
     <!-- 下拉面板 -->
-    <div v-show="isOpen" class="select-dropdown">
+    <div v-show="isOpen" class="cascader-dropdown">
       <!-- 搜索框 -->
       <div class="search-box">
         <input
@@ -165,104 +224,44 @@ watch(isOpen, newVal => {
         <span v-if="searchQuery" class="clear-btn" @click.stop="searchQuery = ''">✕</span>
       </div>
 
-      <!-- 选项列表 -->
-      <div class="options-list">
+      <!-- 搜索结果模式 -->
+      <div v-if="isSearchMode" class="search-results">
         <div
-          v-for="option in filteredOptions"
-          :key="option.value"
-          class="option-item"
-          :class="{
-            'is-selected': option.value === modelValue,
-            'is-disabled': option.disabled,
-          }"
-          @click="selectOption(option)"
+          v-for="item in filteredFlatOptions"
+          :key="item.fullValue"
+          class="search-result-item"
+          :class="{ 'is-selected': item.fullValue === modelValue }"
+          @click="selectFromSearch(item.fullValue)"
         >
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <span v-html="highlightMatch(option.label)"></span>
+          <span v-html="highlightMatch(item.path)"></span>
         </div>
-        <div v-if="filteredOptions.length === 0" class="no-results">无匹配结果</div>
+        <div v-if="filteredFlatOptions.length === 0" class="no-results">无匹配结果</div>
+      </div>
+
+      <!-- 树形浏览模式 -->
+      <div v-else class="tree-container">
+        <CascaderTreeNode
+          :options="options"
+          :model-value="modelValue"
+          :expanded-nodes="expandedNodes"
+          :depth="0"
+          @toggle="toggleNode"
+          @select="selectOption"
+        />
       </div>
     </div>
-  </div>
-
-  <!-- 非搜索模式：原生 select -->
-  <div v-else class="form-select-wrapper">
-    <select
-      :value="modelValue"
-      :disabled="disabled"
-      class="form-select"
-      :class="{ 'is-disabled': disabled }"
-      @change="handleNativeChange"
-    >
-      <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
-      <option
-        v-for="option in normalizedOptions"
-        :key="option.value"
-        :value="option.value"
-        :disabled="option.disabled"
-      >
-        {{ option.label }}
-      </option>
-    </select>
-    <span class="select-arrow">▼</span>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.form-select-wrapper {
+.cascader-wrapper {
   position: relative;
   width: 100%;
-
-  &.searchable {
-    // 搜索模式特有样式
-  }
 }
 
-// 原生 select 样式
-.form-select {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  padding-right: 36px;
-  background: var(--input-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  color: var(--text-color);
-  transition: all var(--transition-normal);
-  box-shadow: var(--shadow-sm);
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-
-  &:focus {
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
-    background: #fff;
-  }
-
-  &:hover:not(:disabled) {
-    border-color: var(--border-color-strong);
-  }
-
-  &.is-disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: var(--border-color-light);
-  }
-
-  option {
-    background: var(--input-bg);
-    color: var(--text-color);
-    padding: var(--spacing-sm);
-
-    &:disabled {
-      color: var(--text-light);
-    }
-  }
-}
-
-// 自定义触发器样式
-.form-select-trigger {
+// 触发器
+.cascader-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -297,29 +296,17 @@ watch(isOpen, newVal => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-}
 
-// 下拉箭头
-.select-arrow {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--accent-color);
-  font-size: 0.7rem;
-  pointer-events: none;
-  transition: transform var(--transition-normal);
-
-  .form-select:focus ~ & {
-    transform: translateY(-50%) rotate(180deg);
+    &.placeholder {
+      color: var(--text-light);
+    }
   }
 
-  // 触发器内的箭头
-  .form-select-trigger & {
-    position: static;
-    transform: none;
+  .trigger-arrow {
+    color: var(--accent-color);
+    font-size: 0.7rem;
     transition: transform var(--transition-normal);
+    margin-left: var(--spacing-sm);
 
     &.rotated {
       transform: rotate(180deg);
@@ -328,7 +315,7 @@ watch(isOpen, newVal => {
 }
 
 // 下拉面板
-.select-dropdown {
+.cascader-dropdown {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -383,18 +370,26 @@ watch(isOpen, newVal => {
   }
 }
 
-// 选项列表
-.options-list {
-  max-height: 240px;
+// 树形容器
+.tree-container {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-xs) 0;
+}
+
+// 搜索结果
+.search-results {
+  max-height: 300px;
   overflow-y: auto;
 }
 
-.option-item {
+.search-result-item {
   padding: var(--spacing-sm) var(--spacing-md);
   cursor: pointer;
   transition: background-color var(--transition-fast);
+  font-size: 0.9rem;
 
-  &:hover:not(.is-disabled) {
+  &:hover {
     background: var(--hover-bg, rgba(212, 175, 55, 0.1));
   }
 
@@ -402,11 +397,6 @@ watch(isOpen, newVal => {
     background: rgba(212, 175, 55, 0.15);
     color: var(--accent-color);
     font-weight: 600;
-  }
-
-  &.is-disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   :deep(.highlight) {
@@ -426,11 +416,15 @@ watch(isOpen, newVal => {
 
 // 移动端适配
 @media (max-width: 768px) {
-  .option-item {
+  .cascader-trigger {
+    min-height: 44px;
+  }
+
+  .search-result-item {
     min-height: 44px;
     display: flex;
     align-items: center;
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 
   .search-input {

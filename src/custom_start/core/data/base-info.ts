@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import type { Attributes, BaseInfoData } from '../types';
+import { convertLocationsToCascaderOptions } from '../utils/form-options';
 import { loadBaseInfo } from '../utils/loader';
 
 // 响应式数据存储
@@ -29,6 +30,20 @@ export const getIdentityCosts = computed(() => {
 export const getStartLocations = computed(() => {
   const external = baseInfoData.value.startLocations || [];
   return [...external.filter(l => l !== '自定义'), '自定义'];
+});
+
+// 获取起始地点的级联选项（树形结构）
+export const getStartLocationsCascader = computed(() => {
+  const external = baseInfoData.value.startLocations || [];
+  // 过滤掉"自定义"，转换为树形结构
+  const locations = external.filter(l => l !== '自定义');
+  const cascaderOptions = convertLocationsToCascaderOptions(locations);
+  // 添加"自定义"选项到根级别
+  cascaderOptions.push({
+    label: '自定义',
+    value: '自定义',
+  });
+  return cascaderOptions;
 });
 
 /**
