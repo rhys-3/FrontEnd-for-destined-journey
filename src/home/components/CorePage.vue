@@ -508,14 +508,14 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center; /* 垂直居中 */
-  padding: 20px 0;
+  padding: 5px 0 20px 0; /* 减少顶部内边距 */
   height: 100%; /* 占满父容器高度 */
   min-height: 400px; /* 保证最小高度 */
 }
 
 .recommend-hero-section {
   text-align: center;
-  margin-bottom: 35px; /* 推开下方卡片 */
+  margin-bottom: 5px; /* 减少与卡片的间距 */
   animation: fadeIn 0.6s ease-out;
 }
 
@@ -573,8 +573,8 @@ onMounted(() => {
 .special-recommend-cards {
   display: flex;
   justify-content: center;
-  gap: 30px; /* 增加间距 */
-  flex-wrap: wrap;
+  gap: 20px;
+  flex-wrap: nowrap; /* 强制不换行 */
   width: 100%;
 }
 
@@ -583,16 +583,16 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 宽度从 180px 增加到 260px */
-  width: 260px;
-  /* 高度从 160px 增加到 200px */
-  min-height: 200px;
-  /* 增加内边距 */
-  padding: 24px 20px;
+  /* 使用flex让卡片自适应宽度 */
+  flex: 1 1 0;
+  max-width: 200px;
+  min-width: 150px;
+  aspect-ratio: 3 / 4; /* 3:4 长方形比例 */
+  padding: 20px 16px;
   background: linear-gradient(135deg, #fdf8f3 0%, #f5ebe0 100%);
   border: 2px solid #d4a574;
   border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(139, 115, 85, 0.12); /* 阴影加深一点 */
+  box-shadow: 0 6px 16px rgba(139, 115, 85, 0.12);
   cursor: pointer;
   transition: all 0.3s ease;
 }
