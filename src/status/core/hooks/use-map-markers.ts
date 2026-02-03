@@ -3,6 +3,58 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapMarker } from '../types/map-markers';
 import { DEFAULT_MARKER_COLOR, DEFAULT_MARKER_ICON } from '../utils/map-constants';
 
+// 图片缓存名称（与 use-map-viewer 保持一致）
+const IMAGE_CACHE_NAME = 'destined-journey-cache-v1';
+
+// 已加载图片的内存缓存（Object URL）
+const imageObjectUrlCache = new Map<string, string>();
+
+/**
+ * 加载并缓存图片
+ * 优先使用内存缓存 -> Cache API -> 网络请求
+ */
+const loadCachedImage = async (url: string): Promise<string> => {
+  // 1. 检查内存缓存
+  const cachedObjectUrl = imageObjectUrlCache.get(url);
+  if (cachedObjectUrl) {
+    return cachedObjectUrl;
+  }
+
+  try {
+    let response: Response | undefined;
+
+    // 2. 检查 Cache API 缓存
+    if ('caches' in window) {
+      const cache = await caches.open(IMAGE_CACHE_NAME);
+      response = await cache.match(url);
+    }
+
+    // 3. 如果缓存未命中，发起网络请求
+    if (!response) {
+      response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      // 缓存到 Cache API
+      if ('caches' in window) {
+        const cache = await caches.open(IMAGE_CACHE_NAME);
+        await cache.put(url, response.clone());
+      }
+    }
+
+    // 4. 转为 Object URL 并缓存到内存
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    imageObjectUrlCache.set(url, objectUrl);
+
+    return objectUrl;
+  } catch (error) {
+    console.warn('[ImageCache] 图片加载失败，回退到原始 URL:', url, error);
+    // 加载失败时回退到原始 URL
+    return url;
+  }
+};
+
 interface UseMapMarkersOptions {
   viewerRef: React.RefObject<OpenSeadragon.Viewer | null>;
   classNames: {
@@ -253,14 +305,15 @@ export const useMapMarkers = ({
           if (innerElement) {
             // 清空现有图片
             innerElement.innerHTML = '';
-            // 添加新图片
+            // 添加新图片（使用 data-src 延迟加载，只有卡片显示时才加载真实图片）
             imageUrls.forEach((url, index) => {
               const itemElement = document.createElement('div');
               itemElement.className = `${classNames.mapMarkerCarouselItem} ${
                 index === 0 ? classNames.mapMarkerCarouselItemActive : ''
               }`;
               const imgElement = document.createElement('img');
-              imgElement.src = url;
+              // 使用 data-src 存储图片 URL，避免立即加载
+              imgElement.dataset.src = url;
               imgElement.alt = `${marker.name || '标记'} - 图片 ${index + 1}`;
               itemElement.appendChild(imgElement);
               innerElement.appendChild(itemElement);
@@ -460,6 +513,18 @@ export const useMapMarkers = ({
       z-index: 10001;
     `;
     visibleCardIdRef.current = markerId;
+
+    // 懒加载图片：使用缓存策略加载图片
+    const images = card.querySelectorAll<HTMLImageElement>('img[data-src]');
+    images.forEach(img => {
+      const dataSrc = img.dataset.src;
+      if (!img.src && dataSrc) {
+        // 使用缓存加载图片
+        loadCachedImage(dataSrc).then(cachedUrl => {
+          img.src = cachedUrl;
+        });
+      }
+    });
   }, []);
 
   // 隐藏卡片
