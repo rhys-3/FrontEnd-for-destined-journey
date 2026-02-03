@@ -10,7 +10,7 @@ export const mapSourceList: MapSourceConfig[] = [
   {
     key: 'small',
     name: '高清地图',
-    url: 'https://files.catbox.moe/ic1q2w.png',
+    url: 'https://i.ibb.co/S4WC1Cfg/image.webp',
   },
   {
     key: 'large',

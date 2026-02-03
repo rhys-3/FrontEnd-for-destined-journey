@@ -13,7 +13,6 @@ import {
   markerIconLabels,
   markerIconOptions,
 } from '../../core/utils/map-constants';
-import { Collapse } from '../../shared/components';
 import styles from './MapTab.module.scss';
 
 export const MapTab: FC = () => {
@@ -337,18 +336,13 @@ export const MapTab: FC = () => {
           </div>
         </div>
 
-        <Collapse
-          className={styles.markerPanel}
-          defaultOpen={false}
-          title={
-            <div className={styles.markerPanelHeader}>
-              <span>标记编辑</span>
-              <span className={styles.markerPanelHint}>
-                {markerAddMode ? '点击地图添加标记' : '支持搜索与编辑'}
-              </span>
-            </div>
-          }
-        >
+        <div className={styles.markerPanel}>
+          <div className={styles.markerPanelHeader}>
+            <span className={styles.markerPanelTitle}>标记编辑</span>
+            <span className={styles.markerPanelHint}>
+              {markerAddMode ? '点击地图添加标记' : '支持搜索与编辑'}
+            </span>
+          </div>
           <div className={styles.markerControls}>
             <button
               type="button"
@@ -553,7 +547,7 @@ export const MapTab: FC = () => {
               )}
             </div>
           </div>
-        </Collapse>
+        </div>
 
         <div className={styles.mapFrame}>
           <div ref={inlineContainerRef} className={styles.mapViewer} />

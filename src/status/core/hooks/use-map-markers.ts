@@ -377,17 +377,35 @@ export const useMapMarkers = ({
 
     // 计算标记在视口中的位置
     const markerRect = markerElement.getBoundingClientRect();
-    const cardWidth = 300; // 卡片预估宽度
 
-    // 卡片显示在标记上方，水平居中
+    // 先临时显示卡片以获取实际尺寸（不可见位置）
+    card.style.cssText = `
+      position: fixed;
+      left: -9999px;
+      top: -9999px;
+      display: block;
+      visibility: hidden;
+      pointer-events: none;
+    `;
+    const cardRect = card.getBoundingClientRect();
+    const cardWidth = cardRect.width || 300;
+
+    // 边距常量
+    const margin = 10;
+    const gap = 10; // 卡片与标记的间距
+
+    // 计算水平位置：优先居中，超出左右边界时调整
     let leftPos = markerRect.left + markerRect.width / 2 - cardWidth / 2;
-    const bottomPos = window.innerHeight - markerRect.top + 10;
 
-    // 边界检测：防止卡片超出视口
-    if (leftPos < 10) leftPos = 10;
-    if (leftPos + cardWidth > window.innerWidth - 10) {
-      leftPos = window.innerWidth - cardWidth - 10;
+    // 水平边界检测：防止卡片超出视口左右
+    if (leftPos < margin) {
+      leftPos = margin;
+    } else if (leftPos + cardWidth > window.innerWidth - margin) {
+      leftPos = window.innerWidth - cardWidth - margin;
     }
+
+    // 垂直位置：卡片显示在标记上方
+    const bottomPos = window.innerHeight - markerRect.top + gap;
 
     card.style.cssText = `
       position: fixed;
