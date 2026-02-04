@@ -5,6 +5,6 @@ export const mapSources = {
   },
   large: {
     type: 'image',
-    url: 'https://files.catbox.moe/siuf3g.png',
+    url: 'https://files.catbox.moe/k8hhwt.webp',
   },
 } as const;

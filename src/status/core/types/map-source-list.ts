@@ -15,6 +15,6 @@ export const mapSourceList: MapSourceConfig[] = [
   {
     key: 'large',
     name: '超清地图',
-    url: 'https://files.catbox.moe/siuf3g.png',
+    url: 'https://files.catbox.moe/k8hhwt.webp',
   },
 ];
