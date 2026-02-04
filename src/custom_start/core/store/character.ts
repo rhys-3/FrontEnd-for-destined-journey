@@ -81,8 +81,8 @@ export const useCharacterStore = defineStore('character', () => {
       _.sumBy(selectedSkills.value, 'cost'),
       // 伙伴消耗
       _.sumBy(selectedPartners.value, 'cost'),
-      // 金钱兑换消耗 (1:10)
-      Math.ceil(character.value.money / 10),
+      // 金钱兑换消耗 (1:100)
+      Math.ceil(character.value.money / 100),
       // 命运点数兑换消耗 (1:2)
       Math.ceil(character.value.destinyPoints / 2),
     ]);
