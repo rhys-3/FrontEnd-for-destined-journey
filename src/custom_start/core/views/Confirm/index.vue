@@ -655,12 +655,12 @@ const getStairwayView = (partner: Partner) => {
 
   .item-desc {
     margin-bottom: var(--spacing-xs) !important;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
   }
 
   .effect-inline {
+    display: block;
+    margin-left: 12px;
+    margin-top: 4px;
     padding: 2px 6px;
     background: rgba(212, 175, 55, 0.12);
     border-radius: var(--radius-sm);
