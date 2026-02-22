@@ -17,6 +17,16 @@ export const useCustomContentStore = defineStore('customContent', () => {
   const customBackgroundDescription = ref('');
 
   /**
+   * 自定义物品编辑标识
+   */
+  const editingCustomItemName = ref('');
+
+  /**
+   * 自定义伙伴编辑标识
+   */
+  const editingCustomPartnerName = ref('');
+
+  /**
    * 更新自定义开局描述
    */
   const updateCustomBackgroundDescription = (value: string) => {
@@ -46,6 +56,23 @@ export const useCustomContentStore = defineStore('customContent', () => {
   };
 
   /**
+   * 批量设置自定义物品表单
+   */
+  const setCustomItemForm = (value: Partial<typeof customItemForm.value>) => {
+    customItemForm.value = {
+      ...customItemForm.value,
+      ...value,
+    };
+  };
+
+  /**
+   * 更新自定义物品编辑标识
+   */
+  const updateEditingCustomItemName = (value: string) => {
+    editingCustomItemName.value = value;
+  };
+
+  /**
    * 重置自定义物品表单
    */
   const resetCustomItemForm = () => {
@@ -60,6 +87,7 @@ export const useCustomContentStore = defineStore('customContent', () => {
       itemConsume: '',
       itemQuantity: 1,
     };
+    editingCustomItemName.value = '';
   };
 
   /**
@@ -109,6 +137,23 @@ export const useCustomContentStore = defineStore('customContent', () => {
   };
 
   /**
+   * 批量设置自定义伙伴表单
+   */
+  const setCustomPartnerForm = (value: Partial<typeof customPartnerForm.value>) => {
+    customPartnerForm.value = {
+      ...customPartnerForm.value,
+      ...value,
+    };
+  };
+
+  /**
+   * 更新自定义伙伴编辑标识
+   */
+  const updateEditingCustomPartnerName = (value: string) => {
+    editingCustomPartnerName.value = value;
+  };
+
+  /**
    * 重置自定义伙伴表单
    * 使用 klona 确保深拷贝安全
    */
@@ -134,6 +179,7 @@ export const useCustomContentStore = defineStore('customContent', () => {
       itemBackgroundInfo: '',
       itemSkills: [],
     };
+    editingCustomPartnerName.value = '';
   };
 
   /**
@@ -143,6 +189,8 @@ export const useCustomContentStore = defineStore('customContent', () => {
     customBackgroundDescription.value = '';
     resetCustomItemForm();
     resetCustomPartnerForm();
+    editingCustomItemName.value = '';
+    editingCustomPartnerName.value = '';
   };
 
   return {
@@ -150,14 +198,24 @@ export const useCustomContentStore = defineStore('customContent', () => {
     customBackgroundDescription,
     updateCustomBackgroundDescription,
 
+    // 自定义物品编辑标识
+    editingCustomItemName,
+    updateEditingCustomItemName,
+
+    // 自定义伙伴编辑标识
+    editingCustomPartnerName,
+    updateEditingCustomPartnerName,
+
     // 自定义物品表单
     customItemForm,
     updateCustomItemForm,
+    setCustomItemForm,
     resetCustomItemForm,
 
     // 自定义伙伴表单
     customPartnerForm,
     updateCustomPartnerForm,
+    setCustomPartnerForm,
     resetCustomPartnerForm,
 
     // 全局重置

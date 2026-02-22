@@ -10,6 +10,7 @@ interface Props {
 
 interface Emits {
   (e: 'remove', item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill'): void;
+  (e: 'edit-custom', item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill'): void;
   (e: 'clear'): void;
 }
 
@@ -20,6 +21,10 @@ const { availablePoints, totalPoints, consumedPoints } = useStorePoints();
 
 const handleRemove = (item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill') => {
   emit('remove', item, type);
+};
+
+const handleEditCustom = (item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill') => {
+  emit('edit-custom', item, type);
 };
 
 const handleClear = () => {
@@ -67,12 +72,23 @@ const totalCost = computed(() =>
           <span class="count">({{ equipments.length }})</span>
         </div>
         <div class="item-list">
-          <div v-for="item in equipments" :key="item.name" class="selected-item">
+          <div
+            v-for="item in equipments"
+            :key="item.name"
+            class="selected-item"
+            :class="{ 'is-custom': item.isCustom }"
+            @click="item.isCustom && handleEditCustom(item, 'equipment')"
+          >
             <div class="item-info">
-              <div class="item-name">{{ item.name }}</div>
+              <div class="item-name">
+                <span class="name-text">{{ item.name }}</span>
+                <span v-if="item.isCustom" class="custom-tag">
+                  <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                </span>
+              </div>
               <div class="item-cost">{{ item.cost }} 点</div>
             </div>
-            <button class="remove-btn" @click="handleRemove(item, 'equipment')">
+            <button class="remove-btn" @click.stop="handleRemove(item, 'equipment')">
               <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
@@ -89,15 +105,24 @@ const totalCost = computed(() =>
           <span class="count">({{ items.length }})</span>
         </div>
         <div class="item-list">
-          <div v-for="item in items" :key="item.name" class="selected-item">
+          <div
+            v-for="item in items"
+            :key="item.name"
+            class="selected-item"
+            :class="{ 'is-custom': item.isCustom }"
+            @click="item.isCustom && handleEditCustom(item, 'item')"
+          >
             <div class="item-info">
               <div class="item-name">
-                {{ item.name }}
+                <span class="name-text">{{ item.name }}</span>
                 <span v-if="item.quantity" class="item-quantity">× {{ item.quantity }}</span>
+                <span v-if="item.isCustom" class="custom-tag">
+                  <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                </span>
               </div>
               <div class="item-cost">{{ item.cost }} 点</div>
             </div>
-            <button class="remove-btn" @click="handleRemove(item, 'item')">
+            <button class="remove-btn" @click.stop="handleRemove(item, 'item')">
               <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
@@ -114,12 +139,23 @@ const totalCost = computed(() =>
           <span class="count">({{ skills.length }})</span>
         </div>
         <div class="item-list">
-          <div v-for="item in skills" :key="item.name" class="selected-item">
+          <div
+            v-for="item in skills"
+            :key="item.name"
+            class="selected-item"
+            :class="{ 'is-custom': item.isCustom }"
+            @click="item.isCustom && handleEditCustom(item, 'skill')"
+          >
             <div class="item-info">
-              <div class="item-name">{{ item.name }}</div>
+              <div class="item-name">
+                <span class="name-text">{{ item.name }}</span>
+                <span v-if="item.isCustom" class="custom-tag">
+                  <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                </span>
+              </div>
               <div class="item-cost">{{ item.cost }} 点</div>
             </div>
-            <button class="remove-btn" @click="handleRemove(item, 'skill')">
+            <button class="remove-btn" @click.stop="handleRemove(item, 'skill')">
               <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
@@ -287,6 +323,9 @@ const totalCost = computed(() =>
           min-width: 0;
 
           .item-name {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
             font-size: 0.9rem;
             font-weight: 600;
             color: var(--text-color);
@@ -294,11 +333,34 @@ const totalCost = computed(() =>
             overflow: hidden;
             text-overflow: ellipsis;
 
+            .name-text {
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+
             .item-quantity {
               margin-left: var(--spacing-xs);
               font-size: 0.85rem;
               font-weight: 500;
               color: #4caf50;
+            }
+
+            .custom-tag {
+              flex: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              padding: 2px 6px;
+              border-radius: var(--radius-sm);
+              background: rgba(76, 175, 80, 0.15);
+              color: #43a047;
+              font-size: 0.75rem;
+              font-weight: 600;
+
+              i {
+                font-size: 0.7rem;
+              }
             }
           }
 
@@ -307,6 +369,16 @@ const totalCost = computed(() =>
             color: var(--accent-color);
             font-family: var(--font-mono);
             margin-top: 2px;
+          }
+        }
+
+        &.is-custom {
+          cursor: pointer;
+          border-style: dashed;
+
+          &:hover {
+            border-color: #43a047;
+            box-shadow: 0 0 0 1px rgba(67, 160, 71, 0.2);
           }
         }
 

@@ -15,7 +15,12 @@ import { calculateCostByPosition, getCostRange } from '../../../utils/cost-calcu
 import { CATEGORY_OPTIONS, RARITY_OPTIONS } from '../../../utils/form-options';
 
 interface Emits {
-  (e: 'add', item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill'): void;
+  (
+    e: 'add',
+    item: Equipment | Item | Skill,
+    type: 'equipment' | 'item' | 'skill',
+    replaceName?: string,
+  ): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -29,6 +34,15 @@ const isExpanded = ref(false);
 // 确认弹窗状态
 const showResetConfirm = ref(false);
 const showAddConfirm = ref(false);
+
+// 编辑状态
+const editingItemName = computed(() => customContentStore.editingCustomItemName);
+const isEditing = computed(() => editingItemName.value.trim() !== '');
+
+const cancelEdit = () => {
+  customContentStore.updateEditingCustomItemName('');
+  customContentStore.resetCustomItemForm();
+};
 
 // 表单数据
 const categoryType = computed({
@@ -107,6 +121,28 @@ const resetForm = () => {
   customContentStore.resetCustomItemForm();
 };
 
+// 回填表单
+const fillFormByItem = (item: Equipment | Item | Skill, type: 'equipment' | 'item' | 'skill') => {
+  customContentStore.setCustomItemForm({
+    categoryType: type,
+    customItemType: item.type || '',
+    itemName: item.name || '',
+    itemRarity: item.rarity as Rarity,
+    itemTag: item.tag ? [...item.tag] : [],
+    itemEffect: item.effect ? { ...item.effect } : {},
+    itemDescription: item.description || '',
+    itemConsume: type === 'skill' ? (item as Skill).consume || '' : '',
+    itemQuantity: type === 'item' ? (item as Item).quantity || 1 : 1,
+  });
+  customContentStore.updateEditingCustomItemName(item.name || '');
+  isExpanded.value = true;
+};
+
+// 暴露给父组件的回填方法
+defineExpose({
+  fillFormByItem,
+});
+
 // 请求清空确认
 const requestReset = () => {
   showResetConfirm.value = true;
@@ -134,7 +170,7 @@ const cancelAdd = () => {
   showAddConfirm.value = false;
 };
 
-// 添加自定义物品（确认后执行）
+// 添加/更新自定义物品（确认后执行）
 const confirmAdd = () => {
   showAddConfirm.value = false;
 
@@ -167,7 +203,7 @@ const confirmAdd = () => {
     newItem = baseItem as Equipment;
   }
 
-  emit('add', newItem, categoryType.value);
+  emit('add', newItem, categoryType.value, editingItemName.value.trim());
   resetForm();
 };
 </script>
@@ -191,7 +227,8 @@ const confirmAdd = () => {
             v-for="option in categoryOptions"
             :key="option.value"
             class="category-btn"
-            :class="{ active: categoryType === option.value }"
+            :class="{ active: categoryType === option.value, disabled: isEditing }"
+            :disabled="isEditing"
             @click="categoryType = option.value as 'equipment' | 'item' | 'skill'"
           >
             {{ option.label }}
@@ -281,7 +318,10 @@ const confirmAdd = () => {
       <!-- 操作按钮 -->
       <div class="form-actions">
         <button class="btn-reset" @click="requestReset">清空</button>
-        <button class="btn-submit" :disabled="!isValid" @click="requestAdd">添加到已选项目</button>
+        <button v-if="isEditing" class="btn-cancel" @click="cancelEdit">取消编辑</button>
+        <button class="btn-submit" :disabled="!isValid" @click="requestAdd">
+          {{ isEditing ? '确认修改' : '添加到已选项目' }}
+        </button>
       </div>
     </div>
 
@@ -297,12 +337,16 @@ const confirmAdd = () => {
       @cancel="cancelReset"
     />
 
-    <!-- 添加确认弹窗 -->
+    <!-- 添加/修改确认弹窗 -->
     <ConfirmModal
       :visible="showAddConfirm"
-      title="确认添加"
-      :message="`确定要将「${itemName}」添加到已选项目吗？`"
-      confirm-text="确认添加"
+      :title="isEditing ? '确认修改' : '确认添加'"
+      :message="
+        isEditing
+          ? `确定要将「${editingItemName}」更新为「${itemName}」吗？`
+          : `确定要将「${itemName}」添加到已选项目吗？`
+      "
+      :confirm-text="isEditing ? '确认修改' : '确认添加'"
       cancel-text="取消"
       type="info"
       @confirm="confirmAdd"
@@ -413,6 +457,13 @@ const confirmAdd = () => {
       font-weight: 600;
       box-shadow: 0 2px 4px rgba(212, 175, 55, 0.3);
     }
+
+    &.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      border-style: dashed;
+      background: var(--input-bg);
+    }
   }
 
   .rarity-btn {
@@ -467,7 +518,8 @@ const confirmAdd = () => {
   }
 
   .btn-reset,
-  .btn-submit {
+  .btn-submit,
+  .btn-cancel {
     flex: 1;
     padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
@@ -486,6 +538,15 @@ const confirmAdd = () => {
     &:hover {
       background: var(--card-bg);
       border-color: var(--border-color-strong);
+    }
+  }
+
+  .btn-cancel {
+    background: var(--border-color);
+    color: var(--text-color);
+
+    &:hover {
+      background: var(--border-color-strong);
     }
   }
 

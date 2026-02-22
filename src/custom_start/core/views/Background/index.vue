@@ -14,6 +14,7 @@ import PartnerList from './components/PartnerList.vue';
 
 const characterStore = useCharacterStore();
 const customContentStore = useCustomContentStore();
+const customPartnerFormRef = ref<InstanceType<typeof CustomPartnerForm> | null>(null);
 
 // 伙伴相关状态
 const currentLevel = ref<string>('');
@@ -51,8 +52,20 @@ const handleDeselectPartner = (partner: Partner) => {
   characterStore.removePartner(partner);
 };
 
-const handleAddCustomPartner = (partner: Partner) => {
-  characterStore.addPartner(partner);
+const handleAddCustomPartner = (partner: Partner, replaceName?: string) => {
+  const targetName = replaceName?.trim();
+  if (targetName) {
+    characterStore.replacePartnerByName(partner, targetName);
+  } else {
+    characterStore.addPartner(partner);
+  }
+  customContentStore.updateEditingCustomPartnerName('');
+};
+
+const handleEditCustomPartner = (partner: Partner) => {
+  if (!partner.isCustom) return;
+  customPartnerFormRef.value?.fillFormByPartner(partner);
+  toastr.info(`已回填自定义伙伴「${partner.name}」`);
 };
 
 // 背景操作
@@ -67,7 +80,6 @@ const handleSelectBackground = (background: Background) => {
     return;
   }
   characterStore.setBackground(background);
-  customContentStore.updateCustomBackgroundDescription('');
 };
 
 // 更新自定义开局描述
@@ -123,7 +135,7 @@ onMounted(() => {
     </section>
 
     <!-- 自定义伙伴表单 -->
-    <CustomPartnerForm @add="handleAddCustomPartner" />
+    <CustomPartnerForm ref="customPartnerFormRef" @add="handleAddCustomPartner" />
 
     <!-- 命运点数兑换 -->
     <DestinyPointsExchange />
@@ -182,10 +194,17 @@ onMounted(() => {
                 v-for="partner in characterStore.selectedPartners"
                 :key="partner.name"
                 class="summary-item"
+                :class="{ 'is-custom': partner.isCustom }"
+                @click="handleEditCustomPartner(partner)"
               >
-                <span class="item-name">{{ partner.name }}</span>
+                <span class="item-name">
+                  <span class="name-text">{{ partner.name }}</span>
+                  <span v-if="partner.isCustom" class="custom-tag">
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                  </span>
+                </span>
                 <span class="item-cost">{{ partner.cost }} 点</span>
-                <button class="remove-btn" @click="handleDeselectPartner(partner)">
+                <button class="remove-btn" @click.stop="handleDeselectPartner(partner)">
                   <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
               </div>
@@ -392,13 +411,50 @@ onMounted(() => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
+  transition: all var(--transition-fast);
 
   &.full {
     flex: 1 1 100%;
   }
 
+  &.is-custom {
+    cursor: pointer;
+    border-style: dashed;
+
+    &:hover {
+      border-color: #43a047;
+      box-shadow: 0 0 0 1px rgba(67, 160, 71, 0.2);
+    }
+  }
+
   .item-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     color: var(--text-color);
+
+    .name-text {
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .custom-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: rgba(76, 175, 80, 0.15);
+      color: #43a047;
+      font-size: 0.75rem;
+      font-weight: 600;
+
+      i {
+        font-size: 0.7rem;
+      }
+    }
   }
 
   .item-cost {

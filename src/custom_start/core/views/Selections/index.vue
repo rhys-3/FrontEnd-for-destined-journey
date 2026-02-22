@@ -5,6 +5,7 @@ import { getEquipments } from '../../data/equipments';
 import { getInitialItems } from '../../data/Items';
 import { getSkills } from '../../data/skills';
 import { useCharacterStore } from '../../store/character';
+import { useCustomContentStore } from '../../store/customContent';
 import type { Equipment, Item, Rarity, Skill } from '../../types';
 
 import CategoryTabs, { type CategoryType } from './components/CategoryTabs.vue';
@@ -15,6 +16,8 @@ import RarityFilter from './components/RarityFilter.vue';
 import SelectedPanel from './components/SelectedPanel.vue';
 
 const characterStore = useCharacterStore();
+const customContentStore = useCustomContentStore();
+const customItemFormRef = ref<InstanceType<typeof CustomItemForm> | null>(null);
 
 // 当前选中的大分类
 const currentCategory = ref<CategoryType>('equipment');
@@ -199,22 +202,50 @@ const handleClearAll = () => {
   characterStore.clearSelections();
 };
 
-// 添加自定义物品
+// 添加/更新自定义物品
 const handleAddCustomItem = (
   item: Equipment | Item | Skill,
   type: 'equipment' | 'item' | 'skill',
+  replaceName?: string,
 ) => {
+  const targetName = replaceName?.trim();
+
   switch (type) {
     case 'equipment':
-      characterStore.addEquipment(item as Equipment);
+      if (targetName) {
+        characterStore.replaceEquipmentByName(item as Equipment, targetName);
+      } else {
+        characterStore.addEquipment(item as Equipment);
+      }
       break;
     case 'item':
-      characterStore.addItem(item as Item);
+      if (targetName) {
+        characterStore.replaceItemByName(item as Item, targetName);
+      } else {
+        characterStore.addItem(item as Item);
+      }
       break;
     case 'skill':
-      characterStore.addSkill(item as Skill);
+      if (targetName) {
+        characterStore.replaceSkillByName(item as Skill, targetName);
+      } else {
+        characterStore.addSkill(item as Skill);
+      }
       break;
   }
+
+  customContentStore.updateEditingCustomItemName('');
+};
+
+// 回填自定义物品表单
+const handleEditCustomItem = (
+  item: Equipment | Item | Skill,
+  type: 'equipment' | 'item' | 'skill',
+) => {
+  customItemFormRef.value?.fillFormByItem(item, type);
+  toastr.info(
+    `已回填自定义${type === 'equipment' ? '装备' : type === 'item' ? '道具' : '技能'}「${item.name}」`,
+  );
 };
 </script>
 
@@ -253,7 +284,7 @@ const handleAddCustomItem = (
       <!-- 自定义物品区域 -->
       <div class="custom-area">
         <MoneyExchangeCard />
-        <CustomItemForm @add="handleAddCustomItem" />
+        <CustomItemForm ref="customItemFormRef" @add="handleAddCustomItem" />
       </div>
 
       <!-- 下半部分：已选面板 -->
@@ -263,6 +294,7 @@ const handleAddCustomItem = (
           :items="characterStore.selectedItems"
           :skills="characterStore.selectedSkills"
           @remove="handleRemoveFromPanel"
+          @edit-custom="handleEditCustomItem"
           @clear="handleClearAll"
         />
       </div>

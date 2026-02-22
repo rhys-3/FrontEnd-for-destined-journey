@@ -151,6 +151,11 @@ export const useCharacterStore = defineStore('character', () => {
     _.remove(selectedEquipments.value, e => e.name === equipment.name);
   };
 
+  const replaceEquipmentByName = (equipment: Equipment, targetName: string) => {
+    _.remove(selectedEquipments.value, e => e.name === targetName);
+    selectedEquipments.value.push(equipment);
+  };
+
   const addItem = (item: Item) => {
     selectedItems.value.push(item);
   };
@@ -159,12 +164,22 @@ export const useCharacterStore = defineStore('character', () => {
     _.remove(selectedItems.value, i => i.name === item.name);
   };
 
+  const replaceItemByName = (item: Item, targetName: string) => {
+    _.remove(selectedItems.value, i => i.name === targetName);
+    selectedItems.value.push(item);
+  };
+
   const addSkill = (skill: Skill) => {
     selectedSkills.value.push(skill);
   };
 
   const removeSkill = (skill: Skill) => {
     _.remove(selectedSkills.value, s => s.name === skill.name);
+  };
+
+  const replaceSkillByName = (skill: Skill, targetName: string) => {
+    _.remove(selectedSkills.value, s => s.name === targetName);
+    selectedSkills.value.push(skill);
   };
 
   const clearSelections = () => {
@@ -194,6 +209,11 @@ export const useCharacterStore = defineStore('character', () => {
 
   const removePartner = (partner: Partner) => {
     _.remove(selectedPartners.value, p => p.name === partner.name);
+  };
+
+  const replacePartnerByName = (partner: Partner, targetName: string) => {
+    _.remove(selectedPartners.value, p => p.name === targetName);
+    selectedPartners.value.push(partner);
   };
 
   // 背景相关操作
@@ -300,15 +320,19 @@ export const useCharacterStore = defineStore('character', () => {
     resetCharacter,
     addEquipment,
     removeEquipment,
+    replaceEquipmentByName,
     addItem,
     removeItem,
+    replaceItemByName,
     addSkill,
     removeSkill,
+    replaceSkillByName,
     clearSelections,
     clearPartners,
     clearAllSelections,
     addPartner,
     removePartner,
+    replacePartnerByName,
     setBackground,
     resetDestinyExchange,
   };

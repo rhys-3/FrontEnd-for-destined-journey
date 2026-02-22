@@ -18,12 +18,21 @@ import EquipmentEditor, { type EquipmentItem } from './EquipmentEditor.vue';
 import SkillEditor, { type SkillItem } from './SkillEditor.vue';
 
 interface Emits {
-  (e: 'add', item: Partner): void;
+  (e: 'add', item: Partner, replaceName?: string): void;
 }
 
 const emit = defineEmits<Emits>();
 const customContentStore = useCustomContentStore();
 const isExpanded = ref(false);
+
+// 编辑状态
+const editingPartnerName = computed(() => customContentStore.editingCustomPartnerName);
+const isEditing = computed(() => editingPartnerName.value.trim() !== '');
+
+const cancelEdit = () => {
+  customContentStore.updateEditingCustomPartnerName('');
+  customContentStore.resetCustomPartnerForm();
+};
 
 // 层级与等级的映射关系
 const LEVEL_GRADE_MAP: Record<number, { name: string; minGrade: number; maxGrade: number }> = {
@@ -40,6 +49,45 @@ const contractOptions = [
   { label: '是', value: true },
   { label: '否', value: false },
 ];
+
+// 默认属性值（与 Store 保持一致）
+const defaultAttributes: Attributes = {
+  strength: 5,
+  dexterity: 5,
+  constitution: 5,
+  intelligence: 5,
+  mind: 5,
+};
+
+const resolveLevelByLifeLevel = (lifeLevel: string): number => {
+  if (!lifeLevel.trim()) return 1;
+
+  const matched = _.findKey(LEVEL_GRADE_MAP, info => lifeLevel.includes(info.name));
+  return matched ? Number(matched) : 1;
+};
+
+const normalizeEquipmentItem = (item: Partial<EquipmentItem>): EquipmentItem => {
+  return {
+    name: item.name || '未知装备',
+    type: item.type || '未知',
+    tag: item.tag ? [...item.tag] : [],
+    rarity: item.rarity || 'common',
+    effect: item.effect ? { ...item.effect } : {},
+    description: item.description || '',
+  };
+};
+
+const normalizeSkillItem = (item: Partial<SkillItem>): SkillItem => {
+  return {
+    name: item.name || '未知技能',
+    type: item.type || '未知',
+    tag: item.tag ? [...item.tag] : [],
+    rarity: item.rarity || 'common',
+    consume: item.consume || '',
+    effect: item.effect ? { ...item.effect } : {},
+    description: item.description || '',
+  };
+};
 
 // 表单数据 - 使用 computed 双向绑定，通过函数访问确保响应式
 const itemName = computed({
@@ -150,6 +198,41 @@ const resetForm = () => {
   if (levelInfo) itemLifeLevel.value = levelInfo.name;
 };
 
+// 回填表单
+const fillFormByPartner = (partner: Partner) => {
+  const resolvedLevel = resolveLevelByLifeLevel(partner.lifeLevel || '');
+  const grade = partner.level || LEVEL_GRADE_MAP[resolvedLevel].minGrade;
+
+  customContentStore.setCustomPartnerForm({
+    itemName: partner.name || '',
+    itemLevel: resolvedLevel,
+    itemLifeLevel: partner.lifeLevel || LEVEL_GRADE_MAP[resolvedLevel].name,
+    itemGrade: grade,
+    itemRace: partner.race || '',
+    itemIdentity: partner.identity ? [...partner.identity] : [],
+    itemCareer: partner.career ? [...partner.career] : [],
+    itemPersonality: partner.personality || '',
+    itemLike: partner.like || '',
+    itemApp: partner.app || '',
+    itemCloth: partner.cloth || '',
+    itemEquip: partner.equip ? partner.equip.map(e => normalizeEquipmentItem(e)) : [],
+    itemAttributes: partner.attributes ? klona(partner.attributes) : klona(defaultAttributes),
+    itemStairway: partner.stairway?.elements?.custom?.desc || '',
+    itemIsContract: Boolean(partner.isContract),
+    itemAffinity: partner.affinity ?? 0,
+    itemComment: partner.comment || '',
+    itemBackgroundInfo: partner.backgroundInfo || '',
+    itemSkills: partner.skills ? partner.skills.map(s => normalizeSkillItem(s)) : [],
+  });
+  customContentStore.updateEditingCustomPartnerName(partner.name || '');
+  isExpanded.value = true;
+};
+
+// 暴露给父组件的回填方法
+defineExpose({
+  fillFormByPartner,
+});
+
 // 请求清空确认
 const requestReset = () => {
   showResetConfirm.value = true;
@@ -188,7 +271,7 @@ const parseStairway = (str: string): Partner['stairway'] => {
   };
 };
 
-// 添加自定义伙伴（确认后执行）
+// 添加/更新自定义伙伴（确认后执行）
 const confirmAdd = () => {
   showAddConfirm.value = false;
 
@@ -215,7 +298,7 @@ const confirmAdd = () => {
     isCustom: true,
   };
 
-  emit('add', newItem);
+  emit('add', newItem, editingPartnerName.value.trim());
   resetForm();
 };
 </script>
@@ -378,7 +461,10 @@ const confirmAdd = () => {
       <!-- 操作按钮 -->
       <div class="form-actions">
         <button class="btn-reset" @click="requestReset">清空</button>
-        <button class="btn-submit" :disabled="!isValid" @click="requestAdd">添加到已选项目</button>
+        <button v-if="isEditing" class="btn-cancel" @click="cancelEdit">取消编辑</button>
+        <button class="btn-submit" :disabled="!isValid" @click="requestAdd">
+          {{ isEditing ? '确认修改' : '添加到已选项目' }}
+        </button>
       </div>
     </div>
 
@@ -394,12 +480,16 @@ const confirmAdd = () => {
       @cancel="cancelReset"
     />
 
-    <!-- 添加确认弹窗 -->
+    <!-- 添加/修改确认弹窗 -->
     <ConfirmModal
       :visible="showAddConfirm"
-      title="确认添加"
-      :message="`确定要将「${itemName}」添加到已选项目吗？`"
-      confirm-text="确认添加"
+      :title="isEditing ? '确认修改' : '确认添加'"
+      :message="
+        isEditing
+          ? `确定要将「${editingPartnerName}」更新为「${itemName}」吗？`
+          : `确定要将「${itemName}」添加到已选项目吗？`
+      "
+      :confirm-text="isEditing ? '确认修改' : '确认添加'"
       cancel-text="取消"
       type="info"
       @confirm="confirmAdd"
@@ -533,7 +623,8 @@ const confirmAdd = () => {
   }
 
   .btn-reset,
-  .btn-submit {
+  .btn-submit,
+  .btn-cancel {
     flex: 1;
     padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
@@ -552,6 +643,15 @@ const confirmAdd = () => {
     &:hover {
       background: var(--card-bg);
       border-color: var(--border-color-strong);
+    }
+  }
+
+  .btn-cancel {
+    background: var(--border-color);
+    color: var(--text-color);
+
+    &:hover {
+      background: var(--border-color-strong);
     }
   }
 
