@@ -401,3 +401,305 @@ export function findMatchingPreset(characterStore: {
   const matchingPreset = _.find(presets, preset => isStoreMatchingPreset(preset, characterStore));
   return matchingPreset?.name ?? null;
 }
+
+// ===================== 导入/导出功能 =====================
+
+/** 导出文件格式版本 */
+const EXPORT_VERSION = 1;
+
+/**
+ * 导出文件的数据结构
+ */
+export interface PresetExportFile {
+  /** 格式版本 */
+  version: number;
+  /** 导出类型：single（单个预设）或 batch（批量导出） */
+  type: 'single' | 'batch';
+  /** 导出时间戳 */
+  exportedAt: number;
+  /** 预设列表 */
+  presets: CharacterPreset[];
+}
+
+/**
+ * 导入冲突项
+ */
+export interface ImportConflict {
+  /** 导入的预设数据 */
+  preset: CharacterPreset;
+  /** 用户选择的处理方式 */
+  resolution: 'overwrite' | 'rename' | 'skip';
+}
+
+/**
+ * 导入结果
+ */
+export interface ImportResult {
+  /** 成功导入的数量 */
+  imported: number;
+  /** 跳过的数量 */
+  skipped: number;
+  /** 覆盖的数量 */
+  overwritten: number;
+  /** 重命名的数量 */
+  renamed: number;
+}
+
+/**
+ * 触发浏览器下载文件
+ * @param content 文件内容
+ * @param fileName 文件名
+ */
+function downloadFile(content: string, fileName: string): void {
+  const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 导出单个预设为 JSON 文件
+ * @param preset 要导出的预设
+ */
+export function exportPreset(preset: CharacterPreset): void {
+  const exportData: PresetExportFile = {
+    version: EXPORT_VERSION,
+    type: 'single',
+    exportedAt: Date.now(),
+    presets: [klona(preset)],
+  };
+
+  const content = JSON.stringify(exportData, null, 2);
+  const fileName = `${preset.name}.preset.json`;
+  downloadFile(content, fileName);
+  toastr.success(`预设「${preset.name}」已导出`);
+}
+
+/**
+ * 导出所有预设为 JSON 文件
+ */
+export function exportAllPresets(): void {
+  const presets = listPresets();
+  if (_.isEmpty(presets)) {
+    toastr.warning('没有可导出的预设');
+    return;
+  }
+
+  const exportData: PresetExportFile = {
+    version: EXPORT_VERSION,
+    type: 'batch',
+    exportedAt: Date.now(),
+    presets: klona(presets),
+  };
+
+  const content = JSON.stringify(exportData, null, 2);
+  const date = new Date().toISOString().slice(0, 10);
+  const fileName = `所有预设_${date}.presets.json`;
+  downloadFile(content, fileName);
+  toastr.success(`已导出 ${presets.length} 个预设`);
+}
+
+/**
+ * 验证导入文件的格式
+ * @param data 解析后的 JSON 数据
+ * @returns 验证后的数据或 null（验证失败）
+ */
+export function validatePresetFile(data: unknown): PresetExportFile | null {
+  if (!_.isPlainObject(data)) {
+    toastr.error('导入失败：文件格式不正确');
+    return null;
+  }
+
+  const file = data as Record<string, unknown>;
+
+  // 检查必要字段
+  if (!_.has(file, 'version') || !_.has(file, 'presets')) {
+    toastr.error('导入失败：缺少必要字段（version/presets）');
+    return null;
+  }
+
+  if (!_.isArray(file.presets)) {
+    toastr.error('导入失败：presets 字段格式不正确');
+    return null;
+  }
+
+  const presets = file.presets as Record<string, unknown>[];
+
+  // 验证每个预设的基本结构
+  const requiredFields = ['name', 'character'];
+  for (const preset of presets) {
+    const missing = _.filter(requiredFields, field => !_.has(preset, field));
+    if (!_.isEmpty(missing)) {
+      toastr.error(`导入失败：预设缺少必要字段（${missing.join(', ')}）`);
+      return null;
+    }
+  }
+
+  return {
+    version: file.version as number,
+    type: (file.type as 'single' | 'batch') || 'single',
+    exportedAt: (file.exportedAt as number) || Date.now(),
+    presets: presets as unknown as CharacterPreset[],
+  };
+}
+
+/**
+ * 读取用户选择的文件内容
+ * @returns 文件内容的 Promise
+ */
+export function readFileFromInput(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) {
+        reject(new Error('未选择文件'));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.readAsText(file);
+    });
+
+    // 用户取消选择
+    input.addEventListener('cancel', () => {
+      reject(new Error('用户取消'));
+    });
+
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  });
+}
+
+/**
+ * 检测导入预设与现有预设的冲突
+ * @param presets 要导入的预设列表
+ * @returns 冲突列表和无冲突列表
+ */
+export function detectConflicts(presets: CharacterPreset[]): {
+  conflicts: ImportConflict[];
+  noConflicts: CharacterPreset[];
+} {
+  const conflicts: ImportConflict[] = [];
+  const noConflicts: CharacterPreset[] = [];
+
+  _.forEach(presets, preset => {
+    if (isPresetNameExists(preset.name)) {
+      conflicts.push({ preset, resolution: 'overwrite' });
+    } else {
+      noConflicts.push(preset);
+    }
+  });
+
+  return { conflicts, noConflicts };
+}
+
+/**
+ * 生成不冲突的重命名
+ * @param name 原始名称
+ * @returns 不冲突的新名称
+ */
+export function generateUniqueName(name: string): string {
+  let suffix = 1;
+  let newName = `${name} (${suffix})`;
+  while (isPresetNameExists(newName)) {
+    suffix++;
+    newName = `${name} (${suffix})`;
+  }
+  return newName;
+}
+
+/**
+ * 执行预设导入
+ * 处理无冲突的预设和已解决冲突的预设
+ * @param noConflicts 无冲突预设列表
+ * @param resolvedConflicts 已解决的冲突列表
+ * @returns 导入结果
+ */
+export function executeImport(
+  noConflicts: CharacterPreset[],
+  resolvedConflicts: ImportConflict[],
+): ImportResult {
+  const result: ImportResult = {
+    imported: 0,
+    skipped: 0,
+    overwritten: 0,
+    renamed: 0,
+  };
+
+  // 导入无冲突的预设
+  _.forEach(noConflicts, preset => {
+    savePreset(
+      {
+        ...preset,
+        createdAt: preset.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      },
+      false,
+    );
+    result.imported++;
+  });
+
+  // 处理冲突预设
+  _.forEach(resolvedConflicts, ({ preset, resolution }) => {
+    switch (resolution) {
+      case 'overwrite':
+        savePreset(
+          {
+            ...preset,
+            updatedAt: Date.now(),
+          },
+          true,
+        );
+        result.overwritten++;
+        break;
+
+      case 'rename': {
+        const newName = generateUniqueName(preset.name);
+        savePreset(
+          {
+            ...preset,
+            name: newName,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          false,
+        );
+        result.renamed++;
+        break;
+      }
+
+      case 'skip':
+        result.skipped++;
+        break;
+    }
+  });
+
+  // 汇总提示
+  const messages: string[] = [];
+  const total = result.imported + result.overwritten + result.renamed;
+  if (total > 0) messages.push(`成功导入 ${total} 个预设`);
+  if (result.overwritten > 0) messages.push(`覆盖 ${result.overwritten} 个`);
+  if (result.renamed > 0) messages.push(`重命名 ${result.renamed} 个`);
+  if (result.skipped > 0) messages.push(`跳过 ${result.skipped} 个`);
+
+  if (total > 0) {
+    toastr.success(messages.join('，'));
+  } else if (result.skipped > 0) {
+    toastr.info(`已跳过所有 ${result.skipped} 个冲突预设`);
+  }
+
+  return result;
+}

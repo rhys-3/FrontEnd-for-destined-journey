@@ -6,11 +6,18 @@ import {
   applyPresetToStore,
   createPresetFromStore,
   deletePreset,
+  detectConflicts,
+  executeImport,
+  exportAllPresets,
+  exportPreset,
   formatPresetTime,
   isPresetNameExists,
   listPresets,
+  readFileFromInput,
   savePreset,
+  validatePresetFile,
   type CharacterPreset,
+  type ImportConflict,
 } from '../utils/preset-manager';
 import { scrollToIframe } from '../utils/scroll';
 
@@ -141,6 +148,107 @@ const modalTitle = computed(() => {
 const showSaveSection = computed(() => {
   return props.mode !== 'load';
 });
+
+// ===================== 导入/导出功能 =====================
+
+// 导出单个预设
+const handleExportPreset = (preset: CharacterPreset) => {
+  exportPreset(preset);
+};
+
+// 导出所有预设
+const handleExportAll = () => {
+  exportAllPresets();
+};
+
+// 导入冲突弹窗相关状态
+const showConflictModal = ref(false);
+const importConflicts = ref<ImportConflict[]>([]);
+const importNoConflicts = ref<CharacterPreset[]>([]);
+
+// 处理导入
+const handleImport = async () => {
+  try {
+    const content = await readFileFromInput();
+    let data: unknown;
+
+    try {
+      data = JSON.parse(content);
+    } catch {
+      toastr.error('导入失败：文件不是有效的 JSON 格式');
+      return;
+    }
+
+    const exportFile = validatePresetFile(data);
+    if (!exportFile) return;
+
+    if (_.isEmpty(exportFile.presets)) {
+      toastr.warning('导入文件中没有预设数据');
+      return;
+    }
+
+    // 检测冲突
+    const { conflicts, noConflicts } = detectConflicts(exportFile.presets);
+
+    if (_.isEmpty(conflicts)) {
+      // 无冲突，直接导入
+      executeImport(noConflicts, []);
+      refreshPresetList();
+    } else {
+      // 有冲突，显示冲突处理弹窗
+      importConflicts.value = conflicts;
+      importNoConflicts.value = noConflicts;
+      showConflictModal.value = true;
+    }
+  } catch (error: unknown) {
+    // 用户取消选择文件不需要提示
+    if (error instanceof Error && error.message === '用户取消') return;
+    console.error('导入预设失败:', error);
+    toastr.error('导入预设失败');
+  }
+};
+
+// 更新冲突项的处理方式
+const updateConflictResolution = (index: number, resolution: ImportConflict['resolution']) => {
+  importConflicts.value[index].resolution = resolution;
+};
+
+// 全部覆盖
+const setAllOverwrite = () => {
+  _.forEach(importConflicts.value, conflict => {
+    conflict.resolution = 'overwrite';
+  });
+};
+
+// 全部跳过
+const setAllSkip = () => {
+  _.forEach(importConflicts.value, conflict => {
+    conflict.resolution = 'skip';
+  });
+};
+
+// 全部重命名
+const setAllRename = () => {
+  _.forEach(importConflicts.value, conflict => {
+    conflict.resolution = 'rename';
+  });
+};
+
+// 确认导入（处理冲突后）
+const confirmImport = () => {
+  executeImport(importNoConflicts.value, importConflicts.value);
+  showConflictModal.value = false;
+  importConflicts.value = [];
+  importNoConflicts.value = [];
+  refreshPresetList();
+};
+
+// 取消导入
+const cancelImport = () => {
+  showConflictModal.value = false;
+  importConflicts.value = [];
+  importNoConflicts.value = [];
+};
 </script>
 
 <template>
@@ -179,9 +287,29 @@ const showSaveSection = computed(() => {
             </div>
           </div>
 
+          <!-- 导入预设区域 -->
+          <div v-if="showSaveSection" class="import-section">
+            <h3 class="section-title"><i class="fa-solid fa-file-import"></i> 导入预设</h3>
+            <div class="import-row">
+              <button class="action-button import-button" @click="handleImport">
+                <i class="fa-solid fa-upload"></i> 导入预设文件
+              </button>
+              <span class="import-hint">支持 .json 格式的预设文件</span>
+            </div>
+          </div>
+
           <!-- 预设列表 -->
           <div class="list-section">
-            <h3 class="section-title"><i class="fa-solid fa-list"></i> 已保存的预设</h3>
+            <div class="list-header">
+              <h3 class="section-title"><i class="fa-solid fa-list"></i> 已保存的预设</h3>
+              <button
+                v-if="presetList.length > 0 && showSaveSection"
+                class="action-button export-all-button"
+                @click="handleExportAll"
+              >
+                <i class="fa-solid fa-file-export"></i> 全部导出
+              </button>
+            </div>
             <div v-if="presetList.length === 0" class="empty-state">
               <i class="fa-solid fa-inbox empty-icon"></i>
               <p>暂无保存的预设</p>
@@ -236,6 +364,13 @@ const showSaveSection = computed(() => {
                     </button>
                     <button
                       v-if="showSaveSection"
+                      class="action-button export-button"
+                      @click="handleExportPreset(preset)"
+                    >
+                      <i class="fa-solid fa-file-export"></i> 导出
+                    </button>
+                    <button
+                      v-if="showSaveSection"
                       class="action-button delete-button"
                       @click="requestDeletePreset(preset.name)"
                     >
@@ -250,6 +385,96 @@ const showSaveSection = computed(() => {
         <!-- 底部按钮 -->
         <div class="modal-footer">
           <button class="footer-button" @click="handleClose">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导入冲突处理弹窗 -->
+    <div v-if="showConflictModal" class="modal-overlay conflict-overlay" @click.self="cancelImport">
+      <div class="modal-container conflict-container">
+        <div class="modal-header">
+          <h2 class="modal-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> 导入冲突
+          </h2>
+          <button class="close-button" title="关闭" @click="cancelImport">✕</button>
+        </div>
+        <div class="modal-content">
+          <p class="conflict-description">
+            以下 {{ importConflicts.length }} 个预设与现有预设名称冲突，请选择处理方式：
+          </p>
+
+          <!-- 批量操作 -->
+          <div class="batch-actions">
+            <button class="action-button batch-button" @click="setAllOverwrite">
+              <i class="fa-solid fa-arrows-rotate"></i> 全部覆盖
+            </button>
+            <button class="action-button batch-button" @click="setAllRename">
+              <i class="fa-solid fa-pen"></i> 全部重命名
+            </button>
+            <button class="action-button batch-button" @click="setAllSkip">
+              <i class="fa-solid fa-forward"></i> 全部跳过
+            </button>
+          </div>
+
+          <!-- 冲突列表 -->
+          <div class="conflict-list">
+            <div
+              v-for="(conflict, index) in importConflicts"
+              :key="conflict.preset.name"
+              class="conflict-item"
+            >
+              <div class="conflict-info">
+                <span class="conflict-name">{{ conflict.preset.name }}</span>
+                <span class="conflict-detail">
+                  <i class="fa-solid fa-user"></i>
+                  {{ conflict.preset.character.name || '未命名' }}
+                  · Lv.{{ conflict.preset.character.level }}
+                </span>
+              </div>
+              <div class="conflict-options">
+                <label class="conflict-option">
+                  <input
+                    type="radio"
+                    :name="`conflict-${index}`"
+                    value="overwrite"
+                    :checked="conflict.resolution === 'overwrite'"
+                    @change="updateConflictResolution(index, 'overwrite')"
+                  />
+                  <span class="option-label overwrite-label">覆盖</span>
+                </label>
+                <label class="conflict-option">
+                  <input
+                    type="radio"
+                    :name="`conflict-${index}`"
+                    value="rename"
+                    :checked="conflict.resolution === 'rename'"
+                    @change="updateConflictResolution(index, 'rename')"
+                  />
+                  <span class="option-label rename-label">重命名</span>
+                </label>
+                <label class="conflict-option">
+                  <input
+                    type="radio"
+                    :name="`conflict-${index}`"
+                    value="skip"
+                    :checked="conflict.resolution === 'skip'"
+                    @change="updateConflictResolution(index, 'skip')"
+                  />
+                  <span class="option-label skip-label">跳过</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 无冲突项提示 -->
+          <p v-if="importNoConflicts.length > 0" class="no-conflict-hint">
+            <i class="fa-solid fa-circle-check"></i>
+            另有 {{ importNoConflicts.length }} 个预设无冲突，将直接导入
+          </p>
+        </div>
+        <div class="modal-footer conflict-footer">
+          <button class="footer-button cancel-footer" @click="cancelImport">取消</button>
+          <button class="footer-button confirm-footer" @click="confirmImport">确认导入</button>
         </div>
       </div>
     </div>
@@ -369,6 +594,37 @@ const showSaveSection = computed(() => {
   }
 }
 
+// 导入区域样式
+.import-section {
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+
+  .import-hint {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    font-style: italic;
+  }
+}
+
+// 列表头部（标题 + 全部导出按钮）
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+
+  .section-title {
+    margin-bottom: 0;
+  }
+}
+
 .action-button {
   display: flex;
   align-items: center;
@@ -414,6 +670,41 @@ const showSaveSection = computed(() => {
     }
   }
 
+  &.export-button {
+    background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%);
+    color: white;
+    border-color: #5c6bc0;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+
+  &.export-all-button {
+    background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%);
+    color: white;
+    border-color: #5c6bc0;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 0.85rem;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+
+  &.import-button {
+    background: linear-gradient(135deg, #26a69a 0%, #00897b 100%);
+    color: white;
+    border-color: #26a69a;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+
   &.delete-button {
     background: var(--card-bg);
     color: var(--error-color);
@@ -439,6 +730,19 @@ const showSaveSection = computed(() => {
 
     &:hover {
       background: var(--button-bg);
+    }
+  }
+
+  &.batch-button {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+    font-size: 0.85rem;
+    padding: var(--spacing-xs) var(--spacing-md);
+
+    &:hover {
+      background: var(--button-bg);
+      border-color: var(--accent-color);
     }
   }
 }
@@ -571,6 +875,139 @@ const showSaveSection = computed(() => {
   }
 }
 
+// ===================== 冲突弹窗样式 =====================
+
+.conflict-overlay {
+  z-index: 10000;
+}
+
+.conflict-container {
+  max-width: 550px;
+}
+
+.conflict-description {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.batch-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.conflict-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.conflict-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+
+  .conflict-name {
+    font-weight: 600;
+    color: var(--title-color);
+    font-size: 0.95rem;
+  }
+
+  .conflict-detail {
+    font-size: 0.8rem;
+    color: var(--text-light);
+
+    i {
+      margin-right: 2px;
+    }
+  }
+}
+
+.conflict-options {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-left: var(--spacing-md);
+}
+
+.conflict-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+
+  input[type='radio'] {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .option-label {
+    font-weight: 500;
+
+    &.overwrite-label {
+      color: #ff9800;
+    }
+
+    &.rename-label {
+      color: #5c6bc0;
+    }
+
+    &.skip-label {
+      color: var(--text-light);
+    }
+  }
+}
+
+.no-conflict-hint {
+  margin: var(--spacing-md) 0 0 0;
+  font-size: 0.9rem;
+  color: var(--success-color);
+
+  i {
+    margin-right: var(--spacing-xs);
+  }
+}
+
+.conflict-footer {
+  gap: var(--spacing-sm);
+
+  .cancel-footer {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+
+    &:hover {
+      background: var(--button-bg);
+    }
+  }
+
+  .confirm-footer {
+    background: linear-gradient(135deg, var(--success-color) 0%, #2e7d32 100%);
+    color: white;
+    border-color: var(--success-color);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+}
+
 // 响应式设计
 @media (max-width: 600px) {
   .modal-container {
@@ -582,6 +1019,21 @@ const showSaveSection = computed(() => {
     flex-direction: column;
   }
 
+  .import-row {
+    flex-direction: column;
+    align-items: stretch;
+
+    .import-hint {
+      text-align: center;
+    }
+  }
+
+  .list-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
   .preset-item {
     flex-direction: column;
     align-items: stretch;
@@ -591,6 +1043,21 @@ const showSaveSection = computed(() => {
   .preset-actions {
     margin-left: 0;
     justify-content: flex-end;
+  }
+
+  .batch-actions {
+    flex-wrap: wrap;
+  }
+
+  .conflict-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .conflict-options {
+    margin-left: 0;
+    justify-content: flex-start;
   }
 }
 </style>
