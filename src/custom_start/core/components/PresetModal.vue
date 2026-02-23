@@ -393,9 +393,7 @@ const cancelImport = () => {
     <div v-if="showConflictModal" class="modal-overlay conflict-overlay" @click.self="cancelImport">
       <div class="modal-container conflict-container">
         <div class="modal-header">
-          <h2 class="modal-title">
-            <i class="fa-solid fa-triangle-exclamation"></i> 导入冲突
-          </h2>
+          <h2 class="modal-title"><i class="fa-solid fa-triangle-exclamation"></i> 导入冲突</h2>
           <button class="close-button" title="关闭" @click="cancelImport">✕</button>
         </div>
         <div class="modal-content">
